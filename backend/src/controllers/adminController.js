@@ -1,0 +1,304 @@
+const { asyncHandler } = require('../middleware/errorHandler');
+const Video = require('../models/Video');
+const AnalysisJob = require('../models/AnalysisJob');
+const Result = require('../models/Result');
+const fs = require('fs');
+const path = require('path');
+
+/**
+ * Get dashboard statistics
+ * GET /api/admin/stats
+ */
+const getDashboardStats = asyncHandler(async (req, res) => {
+    const [
+        totalVideos,
+        analyzedVideos,
+        processingVideos,
+        failedVideos,
+        totalFakeVideos,
+        totalRealVideos,
+        recentJobs,
+    ] = await Promise.all([
+        Video.countDocuments(),
+        Video.countDocuments({ status: 'analyzed' }),
+        Video.countDocuments({ status: 'processing' }),
+        Video.countDocuments({ status: 'failed' }),
+        Result.countDocuments({ verdict: 'fake' }),
+        Result.countDocuments({ verdict: 'real' }),
+        AnalysisJob.find()
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .populate('videoId', 'originalName'),
+    ]);
+
+    res.json({
+        success: true,
+        data: {
+            overview: {
+                totalVideos,
+                analyzedVideos,
+                processingVideos,
+                failedVideos,
+                pendingVideos: totalVideos - analyzedVideos - processingVideos - failedVideos,
+            },
+            results: {
+                fakeVideos: totalFakeVideos,
+                realVideos: totalRealVideos,
+                detectionRate: totalFakeVideos + totalRealVideos > 0
+                    ? ((totalFakeVideos / (totalFakeVideos + totalRealVideos)) * 100).toFixed(2)
+                    : 0,
+            },
+            recentActivity: recentJobs.map(job => ({
+                jobId: job._id,
+                videoName: job.videoId?.originalName || 'Unknown',
+                status: job.status,
+                createdAt: job.createdAt,
+                completedAt: job.completedAt,
+            })),
+        },
+    });
+});
+
+/**
+ * Get all videos with filters (admin view)
+ * GET /api/admin/videos
+ */
+const getAllVideos = asyncHandler(async (req, res) => {
+    const {
+        page = 1,
+        limit = 20,
+        status,
+        verdict,
+        sortBy = 'uploadedAt',
+        sortOrder = 'desc'
+    } = req.query;
+
+    const query = {};
+    if (status) query.status = status;
+
+    // Get videos
+    const videos = await Video.find(query)
+        .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
+        .skip((parseInt(page) - 1) * parseInt(limit))
+        .limit(parseInt(limit));
+
+    // Get results for verdict filter
+    const videoIds = videos.map(v => v._id);
+    const results = await Result.find({ videoId: { $in: videoIds } });
+    const resultsMap = {};
+    results.forEach(r => {
+        resultsMap[r.videoId.toString()] = r;
+    });
+
+    // Combine data
+    let combinedVideos = videos.map(video => ({
+        _id: video._id,
+        filename: video.filename,
+        originalName: video.originalName,
+        fileSize: video.fileSize,
+        duration: video.duration,
+        fps: video.fps,
+        frameCount: video.frameCount,
+        status: video.status,
+        uploadedAt: video.uploadedAt,
+        result: resultsMap[video._id.toString()] ? {
+            verdict: resultsMap[video._id.toString()].verdict,
+            confidence: resultsMap[video._id.toString()].confidence,
+        } : null,
+    }));
+
+    // Filter by verdict if specified
+    if (verdict) {
+        combinedVideos = combinedVideos.filter(v => v.result?.verdict === verdict);
+    }
+
+    const total = await Video.countDocuments(query);
+
+    res.json({
+        success: true,
+        data: combinedVideos,
+        pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            pages: Math.ceil(total / parseInt(limit)),
+        },
+    });
+});
+
+/**
+ * Delete a video and its associated data
+ * DELETE /api/admin/videos/:videoId
+ */
+const deleteVideo = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+
+    const video = await Video.findById(videoId);
+    if (!video) {
+        return res.status(404).json({
+            success: false,
+            error: 'Video not found',
+        });
+    }
+
+    // Delete file from disk
+    if (video.filePath && fs.existsSync(video.filePath)) {
+        fs.unlinkSync(video.filePath);
+    }
+
+    // Delete associated job
+    await AnalysisJob.deleteOne({ videoId });
+
+    // Delete associated result and heatmaps
+    const result = await Result.findOne({ videoId });
+    if (result) {
+        // Delete heatmap files
+        if (result.frameEvidence) {
+            result.frameEvidence.forEach(evidence => {
+                if (evidence.heatmapPath && fs.existsSync(evidence.heatmapPath)) {
+                    fs.unlinkSync(evidence.heatmapPath);
+                }
+            });
+        }
+        await Result.deleteOne({ videoId });
+    }
+
+    // Delete video record
+    await Video.findByIdAndDelete(videoId);
+
+    res.json({
+        success: true,
+        message: 'Video and associated data deleted successfully',
+    });
+});
+
+/**
+ * Bulk delete videos
+ * POST /api/admin/videos/bulk-delete
+ */
+const bulkDeleteVideos = asyncHandler(async (req, res) => {
+    const { videoIds } = req.body;
+
+    if (!videoIds || !Array.isArray(videoIds) || videoIds.length === 0) {
+        return res.status(400).json({
+            success: false,
+            error: 'Please provide an array of video IDs',
+        });
+    }
+
+    let deletedCount = 0;
+    const errors = [];
+
+    for (const videoId of videoIds) {
+        try {
+            const video = await Video.findById(videoId);
+            if (video) {
+                // Delete file
+                if (video.filePath && fs.existsSync(video.filePath)) {
+                    fs.unlinkSync(video.filePath);
+                }
+                await AnalysisJob.deleteOne({ videoId });
+                await Result.deleteOne({ videoId });
+                await Video.findByIdAndDelete(videoId);
+                deletedCount++;
+            }
+        } catch (err) {
+            errors.push({ videoId, error: err.message });
+        }
+    }
+
+    res.json({
+        success: true,
+        data: {
+            requested: videoIds.length,
+            deleted: deletedCount,
+            errors: errors.length > 0 ? errors : undefined,
+        },
+    });
+});
+
+/**
+ * Reprocess a failed video
+ * POST /api/admin/videos/:videoId/reprocess
+ */
+const reprocessVideo = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+
+    const video = await Video.findById(videoId);
+    if (!video) {
+        return res.status(404).json({
+            success: false,
+            error: 'Video not found',
+        });
+    }
+
+    // Reset video status
+    video.status = 'uploaded';
+    await video.save();
+
+    // Reset or create job
+    let job = await AnalysisJob.findOne({ videoId });
+    if (job) {
+        job.status = 'queued';
+        job.errorMessage = null;
+        job.progress = 0;
+        job.startedAt = null;
+        job.completedAt = null;
+        await job.save();
+    } else {
+        job = await AnalysisJob.create({
+            videoId,
+            status: 'queued',
+        });
+    }
+
+    // Delete old result
+    await Result.deleteOne({ videoId });
+
+    res.json({
+        success: true,
+        message: 'Video queued for reprocessing',
+        data: {
+            videoId: video._id,
+            jobId: job._id,
+            status: job.status,
+        },
+    });
+});
+
+/**
+ * Get system configuration
+ * GET /api/admin/config
+ */
+const getConfig = asyncHandler(async (req, res) => {
+    const env = require('../config/env');
+
+    res.json({
+        success: true,
+        data: {
+            server: {
+                port: env.PORT,
+                environment: env.NODE_ENV,
+            },
+            uploads: {
+                maxFileSize: env.MAX_FILE_SIZE,
+                maxFileSizeMB: Math.round(env.MAX_FILE_SIZE / (1024 * 1024)),
+                allowedFormats: env.ALLOWED_EXTENSIONS,
+            },
+            mlService: {
+                url: env.ML_SERVICE_URL,
+                timeout: env.ML_SERVICE_TIMEOUT,
+                status: 'mock', // Since ML isn't ready
+            },
+        },
+    });
+});
+
+module.exports = {
+    getDashboardStats,
+    getAllVideos,
+    deleteVideo,
+    bulkDeleteVideos,
+    reprocessVideo,
+    getConfig,
+};
