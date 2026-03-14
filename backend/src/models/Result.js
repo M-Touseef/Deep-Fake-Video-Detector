@@ -1,47 +1,24 @@
 const mongoose = require('mongoose');
 
+// ── Segment schema (maps from Flask's `segments` array) ──────────────────────
 const manipulatedSegmentSchema = new mongoose.Schema({
-    startFrame: {
-        type: Number,
-        required: true,
-    },
-    endFrame: {
-        type: Number,
-        required: true,
-    },
-    reason: {
-        type: String,
-        default: 'Manipulation detected',
-    },
-    confidence: {
-        type: Number,
-        min: 0,
-        max: 1,
-        default: 0,
-    },
+    label: { type: String, default: '' },         // e.g. "Segment A"
+    timeRange: { type: String, default: '' },         // e.g. "0.0s – 2.5s"
+    score: { type: Number, default: 0 },          // 0-100 %
+    verdict: { type: String, default: '' },         // "HIGH" | "MEDIUM" | "LOW"
+    startTime: { type: Number, default: 0 },          // seconds
+    endTime: { type: Number, default: 0 },          // seconds
 }, { _id: false });
 
+// ── Frame evidence schema (maps from Flask's `top3_frames` array) ─────────────
 const frameEvidenceSchema = new mongoose.Schema({
-    frame: {
-        type: Number,
-        required: true,
-    },
-    confidence: {
-        type: Number,
-        required: true,
-        min: 0,
-        max: 1,
-    },
-    heatmapPath: {
-        type: String,
-        default: null,
-    },
-    anomalyType: {
-        type: String,
-        default: null,
-    },
+    rank: { type: Number, required: true },  // 1, 2, 3
+    timestamp: { type: String, default: '' },     // e.g. "1.0s"
+    score: { type: Number, default: 0 },      // 0-100 %
+    heatmapBase64: { type: String, default: null },   // base64 JPEG from Grad-CAM
 }, { _id: false });
 
+// ── Main result schema ────────────────────────────────────────────────────────
 const resultSchema = new mongoose.Schema({
     videoId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -50,14 +27,23 @@ const resultSchema = new mongoose.Schema({
         unique: true,
         index: true,
     },
+    // "fake" | "real"  (lowercased from Flask's "Fake"/"Real")
     verdict: {
         type: String,
         enum: ['real', 'fake'],
         required: [true, 'Verdict is required'],
     },
+    // Raw model confidence 0-1 (Flask returns 0-100, divided by mlService)
     confidence: {
         type: Number,
-        required: [true, 'Confidence score is required'],
+        required: true,
+        min: 0,
+        max: 1,
+    },
+    // Top-K adjusted confidence 0-1
+    topkConfidence: {
+        type: Number,
+        default: null,
         min: 0,
         max: 1,
     },
@@ -68,7 +54,7 @@ const resultSchema = new mongoose.Schema({
         default: null,
     },
     processingTime: {
-        type: Number, // milliseconds
+        type: Number,   // milliseconds
         default: null,
     },
     createdAt: {
@@ -77,12 +63,12 @@ const resultSchema = new mongoose.Schema({
     },
 });
 
-// Summary statistics virtual
+// ── Virtual summary ───────────────────────────────────────────────────────────
 resultSchema.virtual('summary').get(function () {
     return {
-        totalManipulatedSegments: this.manipulatedSegments.length,
+        totalSegments: this.manipulatedSegments.length,
+        highRiskSegments: this.manipulatedSegments.filter(s => s.verdict === 'HIGH').length,
         totalFrameEvidence: this.frameEvidence.length,
-        highConfidenceFrames: this.frameEvidence.filter(f => f.confidence > 0.8).length,
     };
 });
 

@@ -1,4 +1,9 @@
 const ffmpeg = require('fluent-ffmpeg');
+const ffprobeInstaller = require('@ffprobe-installer/ffprobe');
+
+// Use the bundled ffprobe binary — no global install required
+ffmpeg.setFfprobePath(ffprobeInstaller.path);
+
 
 /**
  * Extract metadata from video file

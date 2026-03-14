@@ -66,8 +66,8 @@ const processAnalysis = async (video, useMock = false) => {
     try {
         let mlResult;
 
-        if (useMock || env.NODE_ENV === 'development') {
-            // Use mock analysis in dev mode or when requested
+        if (useMock) {
+            // Use mock analysis when explicitly requested
             console.log(`[MOCK] Using mock analysis for video: ${video._id}`);
             mlResult = await mlService.mockAnalyze(video);
         } else {

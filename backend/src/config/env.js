@@ -8,8 +8,10 @@ const env = {
     // MongoDB
     MONGODB_URI: process.env.MONGODB_URI || 'mongodb://localhost:27017/proof-of-reality',
 
-    // ML Service
-    ML_SERVICE_URL: process.env.ML_SERVICE_URL || 'http://localhost:8000/analyze',
+    // ML Service — Flask deepfake detector
+    // In production set ML_SERVICE_URL to the Azure Container App URL:
+    //   https://<app-name>.<region>.azurecontainerapps.io/predict
+    ML_SERVICE_URL: process.env.ML_SERVICE_URL || 'http://localhost:5000/predict',
     ML_SERVICE_TIMEOUT: parseInt(process.env.ML_SERVICE_TIMEOUT) || 300000, // 5 minutes
 
     // File Upload
