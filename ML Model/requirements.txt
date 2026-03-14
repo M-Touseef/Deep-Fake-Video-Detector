@@ -1,0 +1,9 @@
+Flask==3.0.0
+torch==2.1.2+cpu
+torchvision==0.16.2+cpu
+opencv-python-headless==4.9.0.80
+mediapipe==0.10.9
+numpy==1.26.4
+Pillow==10.2.0
+werkzeug==3.0.1
+gunicorn==21.2.0

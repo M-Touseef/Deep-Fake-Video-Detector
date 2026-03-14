@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deepfake Detector — Spatial AI</title>
+    <meta name="description"
+        content="Upload an MP4 video and detect deepfakes in real-time using a Vision Transformer + EfficientNet AI model." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet" />
+
+    <style>
+        /* ── Reset & base ─────────────────────────────────────────────────── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0b0e18;
+            --surface: rgba(255, 255, 255, 0.04);
+            --border: rgba(255, 255, 255, 0.10);
+            --accent: #6c63ff;
+            --accent2: #a78bfa;
+            --real: #22c55e;
+            --fake: #ef4444;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --radius: 18px;
+        }
+
+        html,
+        body {
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        /* ── Animated background orbs ─────────────────────────────────────── */
+        body::before,
+        body::after {
+            content: '';
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.18;
+            animation: orb 12s ease-in-out infinite alternate;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::before {
+            width: 560px;
+            height: 560px;
+            background: radial-gradient(circle, #6c63ff, transparent);
+            top: -180px;
+            left: -180px;
+        }
+
+        body::after {
+            width: 480px;
+            height: 480px;
+            background: radial-gradient(circle, #06b6d4, transparent);
+            bottom: -160px;
+            right: -160px;
+            animation-delay: -6s;
+        }
+
+        @keyframes orb {
+            from {
+                transform: translate(0, 0) scale(1);
+            }
+
+            to {
+                transform: translate(40px, 30px) scale(1.15);
+            }
+        }
+
+        /* ── Layout ───────────────────────────────────────────────────────── */
+        .page {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+            gap: 2rem;
+        }
+
+        /* ── Header ───────────────────────────────────────────────────────── */
+        .header {
+            text-align: center;
+        }
+
+        .header .badge {
+            display: inline-block;
+            font-size: .72rem;
+            font-weight: 600;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--accent2);
+            border: 1px solid rgba(167, 139, 250, 0.35);
+            padding: .28rem .8rem;
+            border-radius: 100px;
+            margin-bottom: 1rem;
+            background: rgba(108, 99, 255, 0.08);
+        }
+
+        .header h1 {
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            font-weight: 700;
+            background: linear-gradient(135deg, #e2e8f0 30%, var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+        }
+
+        .header p {
+            margin-top: .7rem;
+            color: var(--muted);
+            font-size: .95rem;
+            max-width: 360px;
+            margin-inline: auto;
+        }
+
+        /* ── Card ─────────────────────────────────────────────────────────── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 2.4rem 2.2rem;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+        }
+
+        /* ── Drop zone ────────────────────────────────────────────────────── */
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 2.2rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color .25s, background .25s;
+            position: relative;
+        }
+
+        .drop-zone:hover,
+        .drop-zone.drag-over {
+            border-color: var(--accent);
+            background: rgba(108, 99, 255, 0.07);
+        }
+
+        .drop-zone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .drop-icon {
+            font-size: 2.8rem;
+            margin-bottom: .6rem;
+            display: block;
+        }
+
+        .drop-zone .label {
+            font-size: .9rem;
+            color: var(--muted);
+        }
+
+        .drop-zone .label strong {
+            color: var(--accent2);
+        }
+
+        .drop-zone .file-name {
+            margin-top: .6rem;
+            font-size: .82rem;
+            font-weight: 500;
+            color: var(--text);
+            word-break: break-all;
+            display: none;
+        }
+
+        /* ── Submit button ────────────────────────────────────────────────── */
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            width: 100%;
+            margin-top: 1.4rem;
+            padding: .82rem;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            color: #fff;
+            font-family: inherit;
+            font-size: .97rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: opacity .2s, transform .15s;
+            box-shadow: 0 4px 20px rgba(108, 99, 255, 0.45);
+        }
+
+        .btn:hover:not(:disabled) {
+            opacity: .9;
+            transform: translateY(-1px);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ── Loader dots ──────────────────────────────────────────────────── */
+        .loader {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: .9rem;
+            margin-top: 1.6rem;
+        }
+
+        .loader.visible {
+            display: flex;
+        }
+
+        .dots {
+            display: flex;
+            gap: .4rem;
+        }
+
+        .dots span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent2);
+            animation: bounce 1.2s ease-in-out infinite;
+        }
+
+        .dots span:nth-child(2) {
+            animation-delay: .2s;
+        }
+
+        .dots span:nth-child(3) {
+            animation-delay: .4s;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            80%,
+            100% {
+                transform: translateY(0);
+                opacity: .4;
+            }
+
+            40% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        .loader p {
+            font-size: .84rem;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        /* ── Result panel ─────────────────────────────────────────────────── */
+        .result-panel {
+            display: none;
+            margin-top: 1.8rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.03);
+            padding: 1.5rem 1.2rem;
+            text-align: center;
+            animation: fadeUp .4s ease forwards;
+        }
+
+        .result-panel.visible {
+            display: block;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* SVG confidence ring */
+        .ring-wrap {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto .9rem;
+        }
+
+        .ring-wrap svg {
+            transform: rotate(-90deg);
+        }
+
+        .ring-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.08);
+            stroke-width: 8;
+        }
+
+        .ring-fill {
+            fill: none;
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-dasharray: 314;
+            stroke-dashoffset: 314;
+            transition: stroke-dashoffset 1s ease, stroke .5s;
+        }
+
+        .ring-text {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ring-pct {
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .ring-label {
+            font-size: .68rem;
+            color: var(--muted);
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            margin-top: .2rem;
+        }
+
+        .verdict {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: .02em;
+        }
+
+        .verdict.fake {
+            color: var(--fake);
+        }
+
+        .verdict.real {
+            color: var(--real);
+        }
+
+        .verdict-sub {
+            font-size: .82rem;
+            color: var(--muted);
+            margin-top: .3rem;
+        }
+
+        /* error */
+        .error-msg {
+            display: none;
+            margin-top: 1.2rem;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 10px;
+            padding: .9rem 1rem;
+            font-size: .87rem;
+            color: #fca5a5;
+            text-align: center;
+        }
+
+        .error-msg.visible {
+            display: block;
+        }
+
+        /* ── Footer ───────────────────────────────────────────────────────── */
+        footer {
+            font-size: .75rem;
+            color: #475569;
+            text-align: center;
+        }
+
+        /* ── XAI Analysis Panel ────────────────────────────────────────────── */
+        .xai-section {
+            display: none;
+            width: 100%;
+            max-width: 740px;
+            animation: fadeUp .5s ease forwards;
+        }
+
+        .xai-section.visible {
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+        }
+
+        /* shared card shell */
+        .xai-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 1.6rem 1.8rem 1.8rem;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+        }
+
+        .xai-header {
+            display: flex;
+            align-items: center;
+            gap: .7rem;
+            margin-bottom: .5rem;
+        }
+
+        .xai-header h3 {
+            font-size: .97rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .xai-badge {
+            font-size: .65rem;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: #fb923c;
+            border: 1px solid rgba(251, 146, 60, .35);
+            padding: .18rem .6rem;
+            border-radius: 100px;
+            background: rgba(251, 146, 60, .08);
+        }
+
+        .xai-desc {
+            font-size: .78rem;
+            color: var(--muted);
+            margin-bottom: 1.1rem;
+            line-height: 1.55;
+        }
+
+        /* ── Top-K confidence row ─── */
+        .topk-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .topk-chip {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(108, 99, 255, 0.1);
+            border: 1px solid rgba(108, 99, 255, 0.25);
+            border-radius: 12px;
+            padding: .7rem 1.3rem;
+        }
+
+        .topk-chip .tc-val {
+            font-size: 1.6rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .topk-chip .tc-label {
+            font-size: .66rem;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--muted);
+            margin-top: .2rem;
+        }
+
+        .topk-note {
+            font-size: .78rem;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        /* ── Segment cards ─── */
+        .segment-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        @media (max-width: 520px) {
+            .segment-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .seg-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem 1rem .9rem;
+        }
+
+        .seg-label {
+            font-size: .8rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .seg-time {
+            font-size: .68rem;
+            color: var(--muted);
+            margin-bottom: .6rem;
+        }
+
+        .seg-bar-wrap {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.07);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: .5rem;
+        }
+
+        .seg-bar {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 1s ease;
+            width: 0%;
+        }
+
+        .seg-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .seg-score {
+            font-size: .82rem;
+            font-weight: 600;
+        }
+
+        .seg-verdict {
+            font-size: .62rem;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            padding: .15rem .55rem;
+            border-radius: 100px;
+        }
+
+        .seg-verdict.high {
+            color: #ef4444;
+            background: rgba(239, 68, 68, .12);
+            border: 1px solid rgba(239, 68, 68, .3);
+        }
+
+        .seg-verdict.medium {
+            color: #f59e0b;
+            background: rgba(245, 158, 11, .12);
+            border: 1px solid rgba(245, 158, 11, .3);
+        }
+
+        .seg-verdict.low {
+            color: #22c55e;
+            background: rgba(34, 197, 94, .12);
+            border: 1px solid rgba(34, 197, 94, .3);
+        }
+
+        /* ── Top-3 frames ─── */
+        .top3-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        @media (max-width: 520px) {
+            .top3-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .top3-item {
+            display: flex;
+            flex-direction: column;
+            gap: .45rem;
+            opacity: 0;
+            animation: frameFadeIn .45s ease forwards;
+        }
+
+        .top3-item img {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 2px solid rgba(239, 68, 68, .45);
+        }
+
+        .top3-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .top3-rank {
+            font-size: .72rem;
+            font-weight: 700;
+            color: var(--accent2);
+        }
+
+        .top3-ts {
+            font-size: .72rem;
+            color: var(--muted);
+        }
+
+        .top3-score {
+            font-size: .72rem;
+            font-weight: 600;
+            color: #ef4444;
+        }
+
+        @keyframes frameFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(.93) translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        /* Legend */
+        .xai-legend {
+            display: flex;
+            align-items: center;
+            gap: 1.4rem;
+            margin-top: .9rem;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: .4rem;
+            font-size: .72rem;
+            color: var(--muted);
+        }
+
+        .legend-swatch {
+            width: 13px;
+            height: 13px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+
+        <!-- Header -->
+        <header class="header">
+            <div class="badge">⚡ Spatial AI · Vision Transformer</div>
+            <h1>Deepfake<br />Detector</h1>
+            <p>Upload an MP4 video. Our model analyses 16 face frames to detect manipulation.</p>
+        </header>
+
+        <!-- Main card -->
+        <main class="card">
+
+            <!-- Drop zone -->
+            <div class="drop-zone" id="dropZone">
+                <input type="file" id="videoFile" accept=".mp4" />
+                <span class="drop-icon">🎞️</span>
+                <div class="label">
+                    <strong>Click to browse</strong> or drag &amp; drop<br />
+                    MP4 · max 50 MB
+                </div>
+                <div class="file-name" id="fileName"></div>
+            </div>
+
+            <!-- Submit -->
+            <button class="btn" id="analyzeBtn" disabled>
+                <span>🔍</span> Analyze Video
+            </button>
+
+            <!-- Loader -->
+            <div class="loader" id="loader">
+                <div class="dots">
+                    <span></span><span></span><span></span>
+                </div>
+                <p>Extracting 16 face frames, running Vision Transformer &amp; computing Grad-CAM…<br />This may take
+                    15–40 seconds.</p>
+            </div>
+
+            <!-- Result panel -->
+            <div class="result-panel" id="resultPanel">
+                <div class="ring-wrap">
+                    <svg viewBox="0 0 110 110" width="120" height="120">
+                        <circle class="ring-bg" cx="55" cy="55" r="50"></circle>
+                        <circle class="ring-fill" id="ringFill" cx="55" cy="55" r="50"></circle>
+                    </svg>
+                    <div class="ring-text">
+                        <span class="ring-pct" id="ringPct">0%</span>
+                        <span class="ring-label">Confidence</span>
+                    </div>
+                </div>
+                <div class="verdict" id="verdictText"></div>
+                <div class="verdict-sub" id="verdictSub"></div>
+            </div>
+
+            <!-- Error -->
+            <div class="error-msg" id="errorMsg"></div>
+        </main>
+
+        <!-- XAI Analysis Panel -->
+        <section class="xai-section" id="xaiSection" aria-label="Explainable AI analysis">
+
+            <!-- Top-K Confidence card -->
+            <div class="xai-card">
+                <div class="xai-header">
+                    <span>🎯</span>
+                    <h3>Top-4 Frame Confidence</h3>
+                    <span class="xai-badge">Top-K</span>
+                </div>
+                <p class="xai-desc">Adjusted confidence using only the 4 most suspicious frames. Frames with near-zero
+                    heatmap activation are excluded from scoring.</p>
+                <div class="topk-row">
+                    <div class="topk-chip">
+                        <span class="tc-val" id="topkVal">—</span>
+                        <span class="tc-label">Top-K Confidence</span>
+                    </div>
+                    <p class="topk-note" id="topkNote"></p>
+                </div>
+            </div>
+
+            <!-- Segment Scoring card -->
+            <div class="xai-card">
+                <div class="xai-header">
+                    <span>🗂️</span>
+                    <h3>Segment-Based Analysis</h3>
+                    <span class="xai-badge">3 Segments</span>
+                </div>
+                <p class="xai-desc">Video divided into 3 temporal segments. Score = average Grad-CAM attention intensity
+                    across frames in that segment.</p>
+                <div class="segment-grid" id="segmentGrid"></div>
+            </div>
+
+            <!-- Top-3 Frames card -->
+            <div class="xai-card">
+                <div class="xai-header">
+                    <span>🔥</span>
+                    <h3>Top-3 Suspicious Frames</h3>
+                    <span class="xai-badge">XAI</span>
+                </div>
+                <p class="xai-desc">The 3 frames with highest Grad-CAM intensity. <strong>Red/yellow = model
+                        attention</strong>. Timestamp and suspicion score overlaid.</p>
+                <div class="top3-grid" id="top3Grid"></div>
+                <div class="xai-legend">
+                    <div class="legend-item">
+                        <div class="legend-swatch" style="background:linear-gradient(90deg,#ff0000,#ff8800)"></div>
+                        High attention (Fake signal)
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-swatch" style="background:linear-gradient(90deg,#0000ff,#00ccff)"></div>
+                        Low attention (ignored)
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <footer>Spatial Deepfake Detector · EfficientNet-B0 + Transformer + Grad-CAM XAI · Local inference</footer>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('videoFile');
+        const fileName = document.getElementById('fileName');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const loader = document.getElementById('loader');
+        const resultPanel = document.getElementById('resultPanel');
+        const errorMsg = document.getElementById('errorMsg');
+        const ringFill = document.getElementById('ringFill');
+        const ringPct = document.getElementById('ringPct');
+        const verdictText = document.getElementById('verdictText');
+        const verdictSub = document.getElementById('verdictSub');
+
+        // Circumference of r=50 circle = 2π×50 ≈ 314.16
+        const CIRC = 2 * Math.PI * 50;
+
+        /* ── Drag-and-drop ─────────────────────────────────────────── */
+        dropZone.addEventListener('dragover', e => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        ['dragleave', 'drop'].forEach(ev =>
+            dropZone.addEventListener(ev, () => dropZone.classList.remove('drag-over'))
+        );
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            if (file) setFile(file);
+        });
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files[0]) setFile(fileInput.files[0]);
+        });
+
+        function setFile(file) {
+            fileName.textContent = '📄 ' + file.name;
+            fileName.style.display = 'block';
+            analyzeBtn.disabled = !file.name.toLowerCase().endsWith('.mp4');
+            resetResult();
+        }
+
+        /* ── Analyze ────────────────────────────────────────────────── */
+        analyzeBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0] || null;
+            if (!file) return;
+
+            resetResult();
+            setLoading(true);
+
+            const formData = new FormData();
+            formData.append('video', file);
+
+            try {
+                const res = await fetch('/predict', { method: 'POST', body: formData });
+                const data = await res.json();
+                setLoading(false);
+
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    showResult(data.prediction, data.confidence);
+                    showAnalysis(data);
+                }
+            } catch (err) {
+                setLoading(false);
+                showError('Could not reach the server. Make sure Flask is running on port 5000.');
+            }
+        });
+
+        /* ── Helpers ─────────────────────────────────────────────────── */
+        function setLoading(on) {
+            analyzeBtn.disabled = on;
+            loader.classList.toggle('visible', on);
+        }
+
+        function resetResult() {
+            resultPanel.classList.remove('visible');
+            errorMsg.classList.remove('visible');
+            errorMsg.textContent = '';
+            ringFill.style.strokeDashoffset = CIRC;
+            ringPct.textContent = '0%';
+            // Clear XAI panels
+            document.getElementById('xaiSection').classList.remove('visible');
+            document.getElementById('segmentGrid').innerHTML = '';
+            document.getElementById('top3Grid').innerHTML = '';
+            document.getElementById('topkVal').textContent = '—';
+            document.getElementById('topkNote').textContent = '';
+        }
+
+        function showError(msg) {
+            errorMsg.textContent = '⚠️  ' + msg;
+            errorMsg.classList.add('visible');
+        }
+
+        function showResult(prediction, confidence) {
+            const isFake = prediction === 'Fake';
+            const color = isFake ? '#ef4444' : '#22c55e';
+            const emoji = isFake ? '🚨' : '✅';
+
+            verdictText.textContent = emoji + ' ' + prediction;
+            verdictText.className = 'verdict ' + (isFake ? 'fake' : 'real');
+            verdictSub.textContent = isFake
+                ? 'High probability of manipulation detected.'
+                : 'No significant deepfake artifacts found.';
+
+            ringFill.style.stroke = color;
+            ringPct.style.color = color;
+            resultPanel.classList.add('visible');
+
+            // Animate ring
+            const pct = confidence / 100;
+            const offset = CIRC * (1 - pct);
+            requestAnimationFrame(() => {
+                ringFill.style.strokeDashoffset = offset;
+            });
+
+            // Animate counter
+            let cur = 0;
+            const target = Math.round(confidence);
+            const step = () => {
+                if (cur < target) {
+                    cur = Math.min(cur + Math.ceil((target - cur) / 8 + 1), target);
+                    ringPct.textContent = cur + '%';
+                    requestAnimationFrame(step);
+                }
+            };
+            requestAnimationFrame(step);
+        }
+
+        function showAnalysis(data) {
+            const section = document.getElementById('xaiSection');
+
+            // ── Top-K confidence chip ─────────────────────────────────────────────
+            const isFake = data.prediction === 'Fake';
+            const topkColor = isFake ? '#ef4444' : '#22c55e';
+            const topkEl = document.getElementById('topkVal');
+            topkEl.textContent = data.topk_confidence + '%';
+            topkEl.style.color = topkColor;
+            document.getElementById('topkNote').textContent =
+                isFake
+                    ? `Top-4 frames averaged ${data.topk_confidence}% suspicion. Mean-pooling would have diluted this signal.`
+                    : `Top-4 frames averaged only ${data.topk_confidence}% suspicion — consistent with a real video.`;
+
+            // ── Segment cards ─────────────────────────────────────────────────────
+            const segGrid = document.getElementById('segmentGrid');
+            segGrid.innerHTML = '';
+            (data.segments || []).forEach(seg => {
+                const barColor = seg.verdict_css === 'high' ? '#ef4444'
+                    : seg.verdict_css === 'medium' ? '#f59e0b'
+                        : '#22c55e';
+                const card = document.createElement('div');
+                card.className = 'seg-card';
+                card.innerHTML = `
+                <div class="seg-label">${seg.label}</div>
+                <div class="seg-time">${seg.time_range}</div>
+                <div class="seg-bar-wrap">
+                    <div class="seg-bar" data-width="${seg.score}" style="background:${barColor}"></div>
+                </div>
+                <div class="seg-footer">
+                    <span class="seg-score" style="color:${barColor}">${seg.score}%</span>
+                    <span class="seg-verdict ${seg.verdict_css}">${seg.verdict}</span>
+                </div>`;
+                segGrid.appendChild(card);
+            });
+            // Animate bars after paint
+            requestAnimationFrame(() => {
+                segGrid.querySelectorAll('.seg-bar').forEach(bar => {
+                    bar.style.width = bar.dataset.width + '%';
+                });
+            });
+
+            // ── Top-3 frames ──────────────────────────────────────────────────────
+            const top3Grid = document.getElementById('top3Grid');
+            top3Grid.innerHTML = '';
+            (data.top3_frames || []).forEach((f, i) => {
+                const item = document.createElement('div');
+                item.className = 'top3-item';
+                item.style.animationDelay = (i * 120) + 'ms';
+                item.innerHTML = `
+                <img src="data:image/jpeg;base64,${f.image}" alt="Suspicious frame #${f.rank}" title="${f.timestamp} · ${f.score}% suspicion">
+                <div class="top3-meta">
+                    <span class="top3-rank">Rank #${f.rank}</span>
+                    <span class="top3-ts">⏱ ${f.timestamp}</span>
+                    <span class="top3-score">${f.score}%</span>
+                </div>`;
+                top3Grid.appendChild(item);
+            });
+
+            section.classList.add('visible');
+            setTimeout(() => section.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 200);
+        }
+    </script>
+</body>
+
+</html>

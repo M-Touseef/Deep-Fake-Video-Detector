@@ -24,8 +24,16 @@ build/
 # Uploads & Generated
 uploads/
 heatmaps/
-"ML Model"/
-ML\ Model/
+"ML Model"/uploads/
+ML\ Model/uploads/
+
+# ML Model - exclude venv and model weights only
+ML\ Model/venv/
+ML\ Model/__pycache__/
+"ML Model/venv"/
+"ML Model/__pycache__"/
+*.pth
+*.tflite
 
 # IDE
 .idea/
