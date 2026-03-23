@@ -15,13 +15,13 @@ const env = {
     ML_SERVICE_TIMEOUT: parseInt(process.env.ML_SERVICE_TIMEOUT) || 300000, // 5 minutes
 
     // File Upload
-    MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE) || 524288000, // 500MB
+    MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE) || 52428800, // 50 MB (aligned with ML service)
     UPLOAD_DIR: process.env.UPLOAD_DIR || path.join(__dirname, '../../uploads'),
     HEATMAP_DIR: process.env.HEATMAP_DIR || path.join(__dirname, '../../heatmaps'),
 
-    // Allowed video formats
-    ALLOWED_MIMETYPES: ['video/mp4', 'video/avi', 'video/x-msvideo'],
-    ALLOWED_EXTENSIONS: ['.mp4', '.avi'],
+    // Allowed video formats (MP4 only — matches Flask /predict)
+    ALLOWED_MIMETYPES: ['video/mp4'],
+    ALLOWED_EXTENSIONS: ['.mp4'],
 
     // JWT (optional)
     JWT_SECRET: process.env.JWT_SECRET || 'default-secret-change-in-production',

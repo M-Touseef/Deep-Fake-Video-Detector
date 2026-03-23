@@ -107,7 +107,7 @@ export const HomePage = () => (
         </div>
         <div className="max-w-sm mx-auto">
           <Step n={1} title="Upload your video"
-            desc="Drop an MP4 file (up to 100 MB). We extract 16 evenly-spaced frames automatically." />
+            desc="Drop an MP4 file (up to 50 MB). We extract 16 evenly-spaced frames automatically." />
           <Step n={2} title="AI analyses every frame"
             desc="BlazeFace detects faces, EfficientNet + Transformer scores each frame. Grad-CAM maps are generated." />
           <Step n={3} title="View detailed results"

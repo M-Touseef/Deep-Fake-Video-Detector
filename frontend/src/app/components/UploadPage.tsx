@@ -40,7 +40,7 @@ export const UploadPage = () => {
   };
   const validateAndSetFile = (file: File) => {
     if (file.type !== 'video/mp4') { toast.error('Only MP4 format is supported'); return; }
-    if (file.size > 100 * 1024 * 1024) { toast.error('File size must be less than 100 MB'); return; }
+    if (file.size > 50 * 1024 * 1024) { toast.error('File size must be 50 MB or less'); return; }
     setSelectedFile(file);
     toast.success('Video ready to analyse');
   };
@@ -127,7 +127,7 @@ export const UploadPage = () => {
               <p className="text-white font-semibold text-lg mb-1">
                 {isDragging ? 'Release to upload' : 'Drop your video here'}
               </p>
-              <p className="text-slate-500 text-sm">or click to browse — MP4 only, max 100 MB</p>
+              <p className="text-slate-500 text-sm">or click to browse — MP4 only, max 50 MB</p>
             </div>
 
             {/* Selected file card */}

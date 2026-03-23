@@ -242,6 +242,15 @@ def analyse_frames(cams, original_faces, frame_meta, global_prob):
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────
+@app.route('/health', methods=['GET'])
+def health():
+    """Liveness/readiness for orchestrators (e.g. Azure Container Apps, K8s)."""
+    return jsonify({
+        'status': 'ok',
+        'service': 'spatial-deepfake-detector',
+    }), 200
+
+
 @app.route('/', methods=['GET'])
 def index():
     return render_template('index.html')

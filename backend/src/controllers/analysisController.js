@@ -10,7 +10,6 @@ const env = require('../config/env');
  */
 const startAnalysis = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
-    const { mock = false } = req.query; // Use mock mode for testing
 
     // Get video
     const video = await videoService.getVideoById(videoId);
@@ -56,25 +55,16 @@ const startAnalysis = asyncHandler(async (req, res) => {
     });
 
     // Process in background (async, no await)
-    processAnalysis(video, mock === 'true' || mock === true);
+    processAnalysis(video);
 });
 
 /**
  * Background analysis processing
  */
-const processAnalysis = async (video, useMock = false) => {
+const processAnalysis = async (video) => {
     try {
-        let mlResult;
-
-        if (useMock) {
-            // Use mock analysis when explicitly requested
-            console.log(`[MOCK] Using mock analysis for video: ${video._id}`);
-            mlResult = await mlService.mockAnalyze(video);
-        } else {
-            // Call real ML service
-            console.log(`[ML] Calling ML service for video: ${video._id}`);
-            mlResult = await mlService.analyzeVideo(video);
-        }
+        console.log(`[ML] Calling ML service for video: ${video._id}`);
+        const mlResult = await mlService.analyzeVideo(video);
 
         // Save result
         await mlService.saveResult(video._id, mlResult);

@@ -288,7 +288,6 @@ const getConfig = asyncHandler(async (req, res) => {
             mlService: {
                 url: env.ML_SERVICE_URL,
                 timeout: env.ML_SERVICE_TIMEOUT,
-                status: 'mock', // Since ML isn't ready
             },
         },
     });

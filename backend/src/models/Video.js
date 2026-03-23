@@ -21,7 +21,7 @@ const videoSchema = new mongoose.Schema({
     mimeType: {
         type: String,
         required: [true, 'MIME type is required'],
-        enum: ['video/mp4', 'video/avi', 'video/x-msvideo'],
+        enum: ['video/mp4'],
     },
     fileSize: {
         type: Number,
