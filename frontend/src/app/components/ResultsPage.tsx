@@ -2,11 +2,12 @@ import { useParams, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Navbar } from './Navbar';
 import { apiService } from '../services/api';
+import { downloadForensicReportPdf } from '../services/reportPdf';
 import { toast } from 'sonner';
 import {
   ArrowLeft, CheckCircle, XCircle, FileVideo, Clock,
   Shield, AlertTriangle, Cpu, TrendingUp, Eye,
-  ChevronRight, Activity,
+  ChevronRight, Activity, Download,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────────
@@ -23,7 +24,10 @@ interface FrameEvidence {
   rank: number;
   timestamp: string;      // "1.0s"
   score: number;          // 0–100 %
+  originalBase64?: string;
   heatmapBase64: string;  // base64 JPEG from Grad-CAM
+  activationRegion?: string;
+  regionExplanation?: string;
 }
 
 interface ResultData {
@@ -77,6 +81,24 @@ const riskStyle = (v: string) => {
     case 'MEDIUM': return { badge: 'bg-orange-100 text-orange-700 border-orange-300', bar: 'bg-orange-400', glow: 'shadow-orange-200' };
     default: return { badge: 'bg-green-100 text-green-700 border-green-300', bar: 'bg-green-400', glow: 'shadow-green-200' };
   }
+};
+
+const getEvidenceRegion = (frame?: FrameEvidence) =>
+  frame?.activationRegion || 'Model-highlighted facial region';
+
+const getEvidenceExplanation = (frame?: FrameEvidence) => {
+  if (!frame) return '';
+  if (frame.regionExplanation) return frame.regionExplanation;
+
+  if (frame.score >= 75) {
+    return 'Strong suspicious activation is visible in this face crop. Review mouth, jawline, eye, and skin-boundary regions for manipulation artifacts.';
+  }
+
+  if (frame.score >= 45) {
+    return 'Moderate activation is visible. The frame should be reviewed for subtle blending, texture, or facial-boundary inconsistencies.';
+  }
+
+  return 'Low activation was detected. This frame is included for comparison but is not a strong standalone manipulation indicator.';
 };
 
 /* ─────────────────────────────────────────────────────────────
@@ -401,9 +423,46 @@ export const ResultsPage = () => {
 
             {/* Active frame detail */}
             {currentFrame && (
-              <div className="flex flex-col md:flex-row gap-6 bg-slate-900/60 rounded-xl p-5 border border-slate-700/40">
+              <div className="bg-slate-900/60 rounded-xl p-5 border border-slate-700/40">
+                <div className="grid md:grid-cols-2 gap-5 mb-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-white">Original Face Crop</p>
+                      <span className="text-[11px] uppercase tracking-wide text-slate-500">Input evidence</span>
+                    </div>
+                    <div className="aspect-square rounded-xl overflow-hidden border border-slate-600 bg-slate-800 shadow-xl">
+                      {currentFrame.originalBase64 || currentFrame.heatmapBase64
+                        ? <img
+                          src={`data:image/jpeg;base64,${currentFrame.originalBase64 || currentFrame.heatmapBase64}`}
+                          alt={`Original face crop frame #${currentFrame.rank}`}
+                          className="w-full h-full object-cover"
+                        />
+                        : <div className="w-full h-full bg-slate-700 flex items-center justify-center text-slate-400">No image</div>
+                      }
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-white">Grad-CAM Overlay</p>
+                      <span className="text-[11px] uppercase tracking-wide text-red-300">Model focus</span>
+                    </div>
+                    <div className="aspect-square rounded-xl overflow-hidden border border-slate-600 bg-slate-800 shadow-xl">
+                      {currentFrame.heatmapBase64
+                        ? <img
+                          src={`data:image/jpeg;base64,${currentFrame.heatmapBase64}`}
+                          alt={`Grad-CAM overlay frame #${currentFrame.rank}`}
+                          className="w-full h-full object-cover"
+                        />
+                        : <div className="w-full h-full bg-slate-700 flex items-center justify-center text-slate-400">No heatmap</div>
+                      }
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-5 gap-5">
                 {/* Large image */}
-                <div className="flex-shrink-0 rounded-xl overflow-hidden border border-slate-600 shadow-xl" style={{ width: 240, height: 240 }}>
+                <div className="hidden" style={{ width: 240, height: 240 }}>
                   {currentFrame.heatmapBase64
                     ? <img
                       src={`data:image/jpeg;base64,${currentFrame.heatmapBase64}`}
@@ -415,7 +474,7 @@ export const ResultsPage = () => {
                 </div>
 
                 {/* Frame metadata */}
-                <div className="flex-1 flex flex-col justify-center gap-4">
+                <div className="md:col-span-3 flex flex-col justify-center gap-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">
@@ -432,6 +491,12 @@ export const ResultsPage = () => {
                       The warm regions in this Grad-CAM overlay indicate where the EfficientNet-B0 backbone
                       detected potential manipulation artifacts — typically around eyes, mouth, or hairline boundaries.
                     </p>
+                  </div>
+
+                  <p className="text-slate-300 text-sm mt-3">{getEvidenceExplanation(currentFrame)}</p>
+                  <div className="inline-flex items-center gap-2 rounded-lg border border-purple-500/20 bg-purple-500/10 px-3 py-2 text-xs text-purple-200">
+                    <Eye className="h-3.5 w-3.5" />
+                    Region focus: <span className="font-semibold text-purple-100">{getEvidenceRegion(currentFrame)}</span>
                   </div>
 
                   {/* Score bar */}
@@ -464,6 +529,24 @@ export const ResultsPage = () => {
                     </div>
                   )}
                 </div>
+
+                <div className="md:col-span-2 rounded-xl border border-slate-700/70 bg-slate-950/40 p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Reviewer note</p>
+                  <p className="text-sm text-slate-300 leading-relaxed">
+                    Compare the original crop against the heatmap overlay. Warm regions mark where gradients most influenced the classifier, so they should guide human review rather than replace it.
+                  </p>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                    <div className="rounded-lg bg-slate-800/70 p-3">
+                      <p className="text-slate-500 mb-1">Timestamp</p>
+                      <p className="text-white font-semibold">{currentFrame.timestamp}</p>
+                    </div>
+                    <div className="rounded-lg bg-slate-800/70 p-3">
+                      <p className="text-slate-500 mb-1">Suspicion</p>
+                      <p className="text-red-300 font-semibold">{currentFrame.score.toFixed(1)}%</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
               </div>
             )}
           </div>
@@ -474,10 +557,22 @@ export const ResultsPage = () => {
         ══════════════════════════════════════════════════════ */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-slate-500 pt-6 border-t border-slate-800">
           <span>Analysed: {new Date(result.createdAt).toLocaleString()}</span>
-          <Link to="/upload"
-            className="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 transition-colors font-medium">
-            Analyse another video <ChevronRight className="h-4 w-4" />
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <button
+              onClick={() => {
+                downloadForensicReportPdf(result);
+                toast.success('Forensic report downloaded');
+              }}
+              className="inline-flex items-center gap-1.5 text-green-400 hover:text-green-300 transition-colors font-medium"
+            >
+              <Download className="h-4 w-4" />
+              Download Forensic Report
+            </button>
+            <Link to="/upload"
+              className="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 transition-colors font-medium">
+              Analyse another video <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
 
       </div>

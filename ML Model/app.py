@@ -110,6 +110,61 @@ def _normalise_cam(cam):
     return np.zeros_like(cam)
 
 
+def _encode_rgb_jpeg(face_rgb):
+    """Encode a 224x224 RGB face crop as a Base64 JPEG string."""
+    bgr = cv2.cvtColor(face_rgb, cv2.COLOR_RGB2BGR)
+    _, buf = cv2.imencode('.jpg', bgr, [cv2.IMWRITE_JPEG_QUALITY, 90])
+    return base64.b64encode(buf).decode('utf-8')
+
+
+def _explain_activation_region(cam):
+    """
+    Rule-based Grad-CAM region summary for reviewer-friendly evidence text.
+    The explanation is derived from the hottest area of the normalised CAM.
+    """
+    cam_up = cv2.resize(cam, (224, 224))
+    cam_norm = _normalise_cam(cam_up)
+    hot_threshold = np.percentile(cam_norm, 85)
+    hot_points = np.argwhere(cam_norm >= hot_threshold)
+
+    if hot_points.size == 0:
+        return {
+            'region': 'Diffuse activation',
+            'explanation': 'Activation is diffuse across the face crop with no single dominant facial region.',
+        }
+
+    y_mean, x_mean = hot_points.mean(axis=0)
+
+    if y_mean < 72:
+        region = 'forehead and eye region'
+        explanation = 'Suspicious activation is concentrated around the forehead and eyes, where blending, gaze, or eyelid artifacts often appear.'
+    elif y_mean < 135:
+        if x_mean < 80:
+            region = 'left cheek and nose boundary'
+            explanation = 'Suspicious activation is concentrated around the left cheek and nose boundary, a common area for face-swap blending artifacts.'
+        elif x_mean > 144:
+            region = 'right cheek and nose boundary'
+            explanation = 'Suspicious activation is concentrated around the right cheek and nose boundary, a common area for face-swap blending artifacts.'
+        else:
+            region = 'central nose and mid-face'
+            explanation = 'Suspicious activation is concentrated around the nose and mid-face, where texture mismatch and identity blending can be visible.'
+    else:
+        if x_mean < 85:
+            region = 'left jawline and mouth boundary'
+            explanation = 'Suspicious activation is concentrated around the left jawline and mouth boundary, where manipulation edges can become visible.'
+        elif x_mean > 139:
+            region = 'right jawline and mouth boundary'
+            explanation = 'Suspicious activation is concentrated around the right jawline and mouth boundary, where manipulation edges can become visible.'
+        else:
+            region = 'mouth and chin region'
+            explanation = 'Suspicious activation is concentrated around the mouth and chin, where lip motion, teeth texture, and lower-face blending artifacts often appear.'
+
+    return {
+        'region': region,
+        'explanation': explanation,
+    }
+
+
 def _render_heatmap_overlay(face_rgb, cam, border_color=None,
                              label_top=None, label_bot=None):
     """
@@ -220,6 +275,7 @@ def analyse_frames(cams, original_faces, frame_meta, global_prob):
     for rank, idx in enumerate(sorted_idx[:3], start=1):
         ts        = frame_meta[idx]['timestamp']
         score_pct = round(float(intensities[idx]) * 100, 1)
+        region_info = _explain_activation_region(cams[idx])
         b64       = _render_heatmap_overlay(
             face_rgb     = original_faces[idx],
             cam          = cams[idx],
@@ -228,10 +284,13 @@ def analyse_frames(cams, original_faces, frame_meta, global_prob):
             label_bot    = f"Suspicion: {score_pct}%",
         )
         top3_frames.append({
-            'image':     b64,
-            'rank':      rank,
-            'timestamp': f"{ts:.1f}s",
-            'score':     score_pct,
+            'image':              b64,
+            'original_image':     _encode_rgb_jpeg(original_faces[idx]),
+            'rank':               rank,
+            'timestamp':          f"{ts:.1f}s",
+            'score':              score_pct,
+            'activation_region':  region_info['region'],
+            'region_explanation': region_info['explanation'],
         })
 
     return {

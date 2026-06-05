@@ -88,7 +88,10 @@ const analyzeVideo = async (video) => {
         rank:           f.rank,
         timestamp:      f.timestamp,   // string e.g. "1.0s"
         score:          f.score,        // 0-100 %
+        originalBase64: f.original_image,
         heatmapBase64:  f.image,        // base64 JPEG string
+        activationRegion: f.activation_region || '',
+        regionExplanation: f.region_explanation || '',
     }));
 
     return {

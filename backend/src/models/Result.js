@@ -15,7 +15,10 @@ const frameEvidenceSchema = new mongoose.Schema({
     rank: { type: Number, required: true },  // 1, 2, 3
     timestamp: { type: String, default: '' },     // e.g. "1.0s"
     score: { type: Number, default: 0 },      // 0-100 %
+    originalBase64: { type: String, default: null },  // original face crop JPEG
     heatmapBase64: { type: String, default: null },   // base64 JPEG from Grad-CAM
+    activationRegion: { type: String, default: '' },
+    regionExplanation: { type: String, default: '' },
 }, { _id: false });
 
 // ── Main result schema ────────────────────────────────────────────────────────
