@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Upload, FileVideo, X, Shield, Clock, Cpu, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Navbar } from './Navbar';
 import { toast } from 'sonner';
-import { useAuth } from './AuthContext';
 import { apiService } from '../services/api';
 
 const STEPS = [
@@ -20,7 +19,6 @@ export const UploadPage = () => {
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   const currentStep = STEPS.find(s => progress >= s.pct[0] && progress < s.pct[1]) ?? STEPS[3];
 
@@ -52,7 +50,7 @@ export const UploadPage = () => {
 
     try {
       setProgress(20);
-      const uploadResponse = await apiService.uploadVideo(selectedFile, user?.id);
+      const uploadResponse = await apiService.uploadVideo(selectedFile);
       if (!uploadResponse.success) throw new Error(uploadResponse.message || 'Upload failed');
 
       const videoId = uploadResponse.data.videoId;
@@ -63,17 +61,20 @@ export const UploadPage = () => {
       const analysisResponse = await apiService.startAnalysis(videoId);
       if (!analysisResponse.success) throw new Error(analysisResponse.message || 'Analysis start failed');
 
-      setProgress(80);
+      setProgress(60);
       let done = false, attempts = 0;
       while (!done && attempts < 60) {
         await new Promise(r => setTimeout(r, 5000));
         const status = await apiService.getAnalysisStatus(videoId);
+        if (status.success && typeof status.data?.progress === 'number') {
+          setProgress(prev => Math.max(prev, Math.min(status.data.progress, 99)));
+        }
         if (status.success && (status.data?.status === 'done' || status.data?.status === 'completed')) {
           done = true; setProgress(100);
           toast.success('Analysis complete!');
           navigate(`/results/${videoId}`);
         } else if (status.data?.status === 'failed') {
-          throw new Error(status.data?.error || 'Analysis failed');
+          throw new Error(status.data?.errorMessage || status.data?.error || 'Analysis failed');
         }
         attempts++;
       }

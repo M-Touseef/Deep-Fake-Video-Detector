@@ -6,7 +6,7 @@ import torch
 from flask import Flask, request, render_template, jsonify
 from werkzeug.utils import secure_filename
 from model import SpatialDeepfakeDetector
-from utils import extract_and_preprocess_video
+from utils import NoFaceDetectedError, extract_and_preprocess_video
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER']      = 'uploads'
@@ -298,6 +298,14 @@ def predict():
             'segments':        analysis['segments'],
             'top3_frames':     analysis['top3_frames'],
         })
+
+    except NoFaceDetectedError as e:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        return jsonify({
+            'error': str(e),
+            'code': 'NO_FACE_DETECTED',
+        }), 422
 
     except Exception as e:
         if os.path.exists(filepath):

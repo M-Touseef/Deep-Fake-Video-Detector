@@ -1,6 +1,7 @@
 const { asyncHandler } = require('../middleware/errorHandler');
 const videoService = require('../services/videoService');
 const jobService = require('../services/jobService');
+const mlService = require('../services/mlService');
 
 /**
  * Upload a new video
@@ -15,7 +16,7 @@ const uploadVideo = asyncHandler(async (req, res) => {
     }
 
     // Create video record with metadata
-    const video = await videoService.createVideo(req.file, req.userId || null);
+    const video = await videoService.createVideo(req.file, req.user?._id || null);
 
     // Create analysis job
     const job = await jobService.createJob(video._id);
@@ -71,13 +72,57 @@ const getVideos = asyncHandler(async (req, res) => {
         page: parseInt(page),
         limit: parseInt(limit),
         status,
-        userId: req.userId || null,
+        userId: req.user?.role === 'admin' ? null : req.user?._id,
     });
+
+    const videosWithResults = await Promise.all(result.videos.map(async (video) => {
+        const resultDoc = await mlService.getResultByVideoId(video._id);
+        return {
+            ...video.toObject(),
+            result: resultDoc ? {
+                verdict: resultDoc.verdict,
+                confidence: resultDoc.confidence,
+            } : null,
+        };
+    }));
 
     res.json({
         success: true,
-        data: result.videos,
+        data: videosWithResults,
         pagination: result.pagination,
+    });
+});
+
+/**
+ * Delete a video owned by the current user
+ * DELETE /api/video/:id
+ */
+const deleteVideo = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const video = await videoService.getVideoById(id);
+    if (!video) {
+        return res.status(404).json({
+            success: false,
+            error: 'Video not found',
+        });
+    }
+
+    const isOwner = video.userId?.toString() === req.user?._id.toString();
+    const isAdmin = req.user?.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
+        return res.status(403).json({
+            success: false,
+            error: 'You can only delete your own videos',
+        });
+    }
+
+    await videoService.deleteVideoWithData(id);
+
+    res.json({
+        success: true,
+        message: 'Video deleted successfully',
     });
 });
 
@@ -85,4 +130,5 @@ module.exports = {
     uploadVideo,
     getVideo,
     getVideos,
+    deleteVideo,
 };

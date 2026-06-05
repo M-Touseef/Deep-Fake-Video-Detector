@@ -27,8 +27,8 @@ export const HistoryPage = () => {
   const loadHistory = async () => {
     setLoading(true);
     try {
-      const res = await apiService.getVideoList(user?.id);
-      if (res.success) setHistory(res.data.videos || []);
+      const res = await apiService.getVideoList();
+      if (res.success) setHistory(res.data || []);
       else toast.error('Failed to load history');
     } catch (e: any) {
       toast.error(e.message || 'Failed to load history');
@@ -39,13 +39,14 @@ export const HistoryPage = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/video/${id}`, { method: 'DELETE' });
-      if (res.ok) { loadHistory(); toast.success('Video deleted'); }
-      else toast.error('Delete failed');
+      await apiService.deleteVideo(id);
+      await loadHistory();
+      toast.success('Video deleted');
     } catch (e: any) { toast.error(e.message || 'Delete failed'); }
   };
 
-  const isFake = (item: any) => item.isDeepfake || item.result?.isDeepfake;
+  const isFake = (item: any) => item.result?.verdict === 'fake';
+  const getDeleteAfter = (uploadedAt: string) => new Date(new Date(uploadedAt).getTime() + 12 * 3600 * 1000).toISOString();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white">
@@ -86,7 +87,7 @@ export const HistoryPage = () => {
         ) : (
           <div className="space-y-3">
             {history.map((item) => (
-              <div key={item.id}
+              <div key={item._id}
                 className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5 flex items-center gap-4 hover:border-slate-600/70 transition-all group">
                 {/* Icon */}
                 <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${isFake(item) ? 'bg-red-500/15' : 'bg-green-500/15'}`}>
@@ -96,40 +97,50 @@ export const HistoryPage = () => {
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium text-sm truncate">
-                    {item.fileName || item.video?.fileName || 'Unknown file'}
+                    {item.originalName || item.filename || 'Unknown file'}
                   </p>
                   <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
-                    <span>{new Date(item.uploadDate || item.video?.uploadDate || Date.now()).toLocaleDateString()}</span>
+                    <span>{new Date(item.uploadedAt || Date.now()).toLocaleDateString()}</span>
                     <span>·</span>
-                    <span>{item.framesAnalyzed || item.result?.framesAnalyzed || 0} frames</span>
+                    <span>{item.frameCount || 0} frames</span>
                     <span>·</span>
-                    <span>{(item.confidence || item.result?.confidence || 0).toFixed(1)}% conf.</span>
+                    <span>{item.result ? `${Math.round((item.result.confidence || 0) * 100)}% conf.` : item.status}</span>
                     <span>·</span>
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {getTimeRemaining(item.deleteAfter || item.video?.deleteAfter || new Date(Date.now() + 12 * 3600 * 1000).toISOString())}
+                      {getTimeRemaining(getDeleteAfter(item.uploadedAt || new Date().toISOString()))}
                     </span>
                   </div>
                 </div>
 
                 {/* Verdict badge */}
-                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold shrink-0 ${isFake(item)
-                    ? 'bg-red-500/15 text-red-300 border border-red-500/20'
-                    : 'bg-green-500/15 text-green-300 border border-green-500/20'
+                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold shrink-0 ${item.result
+                    ? isFake(item)
+                      ? 'bg-red-500/15 text-red-300 border border-red-500/20'
+                      : 'bg-green-500/15 text-green-300 border border-green-500/20'
+                    : 'bg-slate-700/60 text-slate-300 border border-slate-600/60'
                   }`}>
-                  {isFake(item)
-                    ? <><XCircle className="h-3.5 w-3.5" /> Deepfake</>
-                    : <><CheckCircle className="h-3.5 w-3.5" /> Authentic</>
+                  {item.result
+                    ? isFake(item)
+                      ? <><XCircle className="h-3.5 w-3.5" /> Deepfake</>
+                      : <><CheckCircle className="h-3.5 w-3.5" /> Authentic</>
+                    : <>{item.status}</>
                   }
                 </div>
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 shrink-0">
-                  <Link to={`/results/${item.id}`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-600 text-slate-300 hover:border-blue-500/50 hover:text-blue-300 transition-all">
-                    <Eye className="h-3.5 w-3.5" /> View
-                  </Link>
-                  <button onClick={() => handleDelete(item.id)}
+                  {item.result ? (
+                    <Link to={`/results/${item._id}`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-600 text-slate-300 hover:border-blue-500/50 hover:text-blue-300 transition-all">
+                      <Eye className="h-3.5 w-3.5" /> View
+                    </Link>
+                  ) : (
+                    <span className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 text-slate-500">
+                      Pending
+                    </span>
+                  )}
+                  <button onClick={() => handleDelete(item._id)}
                     className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all">
                     <Trash2 className="h-4 w-4" />
                   </button>

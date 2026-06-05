@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiService } from '../services/api';
 
 interface User {
   id: string;
@@ -9,92 +10,58 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => boolean;
-  signup: (email: string, password: string, name: string) => boolean;
+  login: (email: string, password: string) => Promise<User | null>;
+  signup: (email: string, password: string, name: string) => Promise<User | null>;
   logout: () => void;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored user session
-    const storedUser = localStorage.getItem('deepfake_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    const restoreSession = async () => {
+      const token = localStorage.getItem('deepfake_token');
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await apiService.getCurrentUser();
+        setUser(response.data.user);
+      } catch {
+        localStorage.removeItem('deepfake_token');
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    restoreSession();
   }, []);
 
-  const login = (email: string, password: string) => {
-    // Demo: Check against stored users or use demo credentials
-    const users = JSON.parse(localStorage.getItem('deepfake_users') || '[]');
-    
-    // Admin demo account
-    if (email === 'admin@deepfake.com' && password === 'admin123') {
-      const adminUser = {
-        id: 'admin-1',
-        email: 'admin@deepfake.com',
-        name: 'Admin User',
-        role: 'admin' as const
-      };
-      setUser(adminUser);
-      localStorage.setItem('deepfake_user', JSON.stringify(adminUser));
-      return true;
-    }
-
-    // Regular user check
-    const foundUser = users.find((u: any) => u.email === email && u.password === password);
-    if (foundUser) {
-      const userData = {
-        id: foundUser.id,
-        email: foundUser.email,
-        name: foundUser.name,
-        role: foundUser.role || 'user'
-      };
-      setUser(userData);
-      localStorage.setItem('deepfake_user', JSON.stringify(userData));
-      return true;
-    }
-
-    return false;
+  const login = async (email: string, password: string) => {
+    const response = await apiService.login(email, password);
+    localStorage.setItem('deepfake_token', response.data.token);
+    setUser(response.data.user);
+    return response.data.user as User;
   };
 
-  const signup = (email: string, password: string, name: string) => {
-    const users = JSON.parse(localStorage.getItem('deepfake_users') || '[]');
-    
-    // Check if user already exists
-    if (users.find((u: any) => u.email === email)) {
-      return false;
-    }
-
-    const newUser = {
-      id: `user-${Date.now()}`,
-      email,
-      password,
-      name,
-      role: 'user' as const
-    };
-
-    users.push(newUser);
-    localStorage.setItem('deepfake_users', JSON.stringify(users));
-
-    const userData = {
-      id: newUser.id,
-      email: newUser.email,
-      name: newUser.name,
-      role: newUser.role
-    };
-    setUser(userData);
-    localStorage.setItem('deepfake_user', JSON.stringify(userData));
-    return true;
+  const signup = async (email: string, password: string, name: string) => {
+    const response = await apiService.signup(email, password, name);
+    localStorage.setItem('deepfake_token', response.data.token);
+    setUser(response.data.user);
+    return response.data.user as User;
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('deepfake_user');
+    localStorage.removeItem('deepfake_token');
   };
 
   return (
@@ -103,7 +70,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       login,
       signup,
       logout,
-      isAuthenticated: !!user
+      isAuthenticated: !!user,
+      isLoading,
     }}>
       {children}
     </AuthContext.Provider>

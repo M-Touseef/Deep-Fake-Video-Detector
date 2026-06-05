@@ -19,27 +19,29 @@ export const LoginPage = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise(r => setTimeout(r, 400));
-    if (login(loginEmail, loginPassword)) {
+    try {
+      const user = await login(loginEmail, loginPassword);
       toast.success('Welcome back!');
-      navigate('/home');
-    } else {
-      toast.error('Invalid credentials');
+      navigate(user?.role === 'admin' ? '/admin' : '/home');
+    } catch (err: any) {
+      toast.error(err.message || 'Invalid credentials');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise(r => setTimeout(r, 400));
-    if (signup(signupEmail, signupPassword, signupName)) {
+    try {
+      await signup(signupEmail, signupPassword, signupName);
       toast.success('Account created!');
       navigate('/home');
-    } else {
-      toast.error('Email already exists');
+    } catch (err: any) {
+      toast.error(err.message || 'Email already exists');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const inputCls = 'w-full bg-slate-800/60 border border-slate-600/60 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all';
@@ -137,7 +139,6 @@ export const LoginPage = () => {
                     className="w-full py-2.5 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50">
                     {loading ? <div className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> : <>Sign In <ChevronRight className="h-4 w-4" /></>}
                   </button>
-                  <p className="text-center text-xs text-slate-500 pt-1">Demo: <span className="text-slate-300 font-mono">admin@deepfake.com</span> / <span className="text-slate-300 font-mono">admin123</span></p>
                 </form>
               </>
             ) : (

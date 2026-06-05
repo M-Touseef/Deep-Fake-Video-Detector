@@ -29,6 +29,10 @@ MIN_DET_SCORE   = 0.70   # BlazeFace detection confidence gate
 MIN_FACE_PIXELS = 1600   # 40×40 minimum face area in original frame
 
 
+class NoFaceDetectedError(ValueError):
+    """Raised when no usable face crop can be extracted from a video."""
+
+
 def _try_extract_face(frame, fps, frame_idx):
     """
     Attempt to detect and crop a face from a single BGR frame.
@@ -145,12 +149,8 @@ def extract_and_preprocess_video(video_path, frames_per_video=16):
 
     # ── Fallback: no usable faces found ────────────────────────────────────────
     if len(extracted_tensors) == 0:
-        black      = np.zeros((224, 224, 3), dtype=np.uint8)
-        empty_meta = {'timestamp': 0.0, 'face_area': 0, 'det_score': 0.0}
-        return (
-            torch.zeros((1, frames_per_video, 3, 224, 224)),
-            [black]      * frames_per_video,
-            [empty_meta] * frames_per_video,
+        raise NoFaceDetectedError(
+            "No face was detected in this video. Please upload a video with a clear, visible face."
         )
 
     # BUG-2 FIX: pad by cycling through all valid faces (wrap-around) instead

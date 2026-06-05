@@ -3,7 +3,10 @@ const { param, body } = require('express-validator');
 const router = express.Router();
 
 const adminController = require('../controllers/adminController');
+const { requireAdmin } = require('../middleware/auth');
 const { handleValidation, validateVideoId } = require('../middleware/validate');
+
+router.use(requireAdmin);
 
 /**
  * @route   GET /api/admin/stats
@@ -25,6 +28,27 @@ router.get('/config', adminController.getConfig);
  * @access  Admin
  */
 router.get('/videos', adminController.getAllVideos);
+
+/**
+ * @route   GET /api/admin/users
+ * @desc    Get all users
+ * @access  Admin
+ */
+router.get('/users', adminController.getUsers);
+
+/**
+ * @route   DELETE /api/admin/users/:userId
+ * @desc    Delete a user and associated videos
+ * @access  Admin
+ */
+router.delete(
+    '/users/:userId',
+    [
+        param('userId').custom(validateVideoId),
+        handleValidation,
+    ],
+    adminController.deleteUser
+);
 
 /**
  * @route   DELETE /api/admin/videos/:videoId

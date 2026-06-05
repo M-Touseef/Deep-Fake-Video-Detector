@@ -2,8 +2,8 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const Video = require('../models/Video');
 const AnalysisJob = require('../models/AnalysisJob');
 const Result = require('../models/Result');
-const fs = require('fs');
-const path = require('path');
+const User = require('../models/User');
+const videoService = require('../services/videoService');
 
 /**
  * Get dashboard statistics
@@ -17,6 +17,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         failedVideos,
         totalFakeVideos,
         totalRealVideos,
+        activeUsers,
         recentJobs,
     ] = await Promise.all([
         Video.countDocuments(),
@@ -25,6 +26,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         Video.countDocuments({ status: 'failed' }),
         Result.countDocuments({ verdict: 'fake' }),
         Result.countDocuments({ verdict: 'real' }),
+        User.countDocuments(),
         AnalysisJob.find()
             .sort({ createdAt: -1 })
             .limit(5)
@@ -35,6 +37,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         success: true,
         data: {
             overview: {
+                activeUsers,
                 totalVideos,
                 analyzedVideos,
                 processingVideos,
@@ -133,38 +136,13 @@ const getAllVideos = asyncHandler(async (req, res) => {
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
 
-    const video = await Video.findById(videoId);
+    const video = await videoService.deleteVideoWithData(videoId);
     if (!video) {
         return res.status(404).json({
             success: false,
             error: 'Video not found',
         });
     }
-
-    // Delete file from disk
-    if (video.filePath && fs.existsSync(video.filePath)) {
-        fs.unlinkSync(video.filePath);
-    }
-
-    // Delete associated job
-    await AnalysisJob.deleteOne({ videoId });
-
-    // Delete associated result and heatmaps
-    const result = await Result.findOne({ videoId });
-    if (result) {
-        // Delete heatmap files
-        if (result.frameEvidence) {
-            result.frameEvidence.forEach(evidence => {
-                if (evidence.heatmapPath && fs.existsSync(evidence.heatmapPath)) {
-                    fs.unlinkSync(evidence.heatmapPath);
-                }
-            });
-        }
-        await Result.deleteOne({ videoId });
-    }
-
-    // Delete video record
-    await Video.findByIdAndDelete(videoId);
 
     res.json({
         success: true,
@@ -191,15 +169,8 @@ const bulkDeleteVideos = asyncHandler(async (req, res) => {
 
     for (const videoId of videoIds) {
         try {
-            const video = await Video.findById(videoId);
+            const video = await videoService.deleteVideoWithData(videoId);
             if (video) {
-                // Delete file
-                if (video.filePath && fs.existsSync(video.filePath)) {
-                    fs.unlinkSync(video.filePath);
-                }
-                await AnalysisJob.deleteOne({ videoId });
-                await Result.deleteOne({ videoId });
-                await Video.findByIdAndDelete(videoId);
                 deletedCount++;
             }
         } catch (err) {
@@ -214,6 +185,56 @@ const bulkDeleteVideos = asyncHandler(async (req, res) => {
             deleted: deletedCount,
             errors: errors.length > 0 ? errors : undefined,
         },
+    });
+});
+
+/**
+ * Get all users for admin management
+ * GET /api/admin/users
+ */
+const getUsers = asyncHandler(async (req, res) => {
+    const users = await User.find()
+        .sort({ createdAt: -1 })
+        .select('name email role createdAt');
+
+    res.json({
+        success: true,
+        data: users.map(user => user.toSafeJSON()),
+    });
+});
+
+/**
+ * Delete a user and their associated videos
+ * DELETE /api/admin/users/:userId
+ */
+const deleteUser = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+
+    if (req.user?._id.toString() === userId) {
+        return res.status(400).json({
+            success: false,
+            error: 'You cannot delete your own admin account',
+        });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+        return res.status(404).json({
+            success: false,
+            error: 'User not found',
+        });
+    }
+
+    const videos = await Video.find({ userId });
+    for (const video of videos) {
+        await videoService.deleteVideoWithData(video._id);
+    }
+
+    await User.findByIdAndDelete(userId);
+
+    res.json({
+        success: true,
+        message: 'User and associated videos deleted successfully',
     });
 });
 
@@ -300,4 +321,6 @@ module.exports = {
     bulkDeleteVideos,
     reprocessVideo,
     getConfig,
+    getUsers,
+    deleteUser,
 };

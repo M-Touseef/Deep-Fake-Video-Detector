@@ -96,6 +96,22 @@ const updateJobStatus = async (jobId, updates) => {
 };
 
 /**
+ * Update job progress without changing the job status.
+ * @param {string} videoId - Video document ID
+ * @param {number} progress - Progress percentage 0-100
+ * @returns {Promise<Object|null>} Updated job document
+ */
+const updateJobProgress = async (videoId, progress) => {
+    const normalizedProgress = Math.max(0, Math.min(100, Math.round(progress)));
+
+    return AnalysisJob.findOneAndUpdate(
+        { videoId, status: 'running' },
+        { progress: normalizedProgress },
+        { new: true }
+    );
+};
+
+/**
  * Start a job (set to running)
  * @param {string} videoId - Video document ID
  * @returns {Promise<Object|null>} Updated job document
@@ -114,7 +130,7 @@ const startJob = async (videoId) => {
         throw new Error('Job has already completed');
     }
 
-    return updateJobStatus(job._id, { status: 'running' });
+    return updateJobStatus(job._id, { status: 'running', progress: 10 });
 };
 
 /**
@@ -151,6 +167,7 @@ module.exports = {
     getJobByVideoId,
     getJobById,
     updateJobStatus,
+    updateJobProgress,
     startJob,
     completeJob,
     failJob,

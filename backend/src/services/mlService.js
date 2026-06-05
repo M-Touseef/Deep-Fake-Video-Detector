@@ -43,6 +43,9 @@ const analyzeVideo = async (video) => {
         if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
             throw new Error('ML service request timed out after 5 minutes.');
         }
+        if (error.response?.data?.code === 'NO_FACE_DETECTED') {
+            throw new Error(error.response.data.error);
+        }
         const msg = error.response?.data?.error || error.message;
         throw new Error(`ML service error: ${msg}`);
     });

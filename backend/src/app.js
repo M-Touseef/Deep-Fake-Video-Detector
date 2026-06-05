@@ -5,8 +5,10 @@ const fs = require('fs');
 
 const env = require('./config/env');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
+const { attachUser } = require('./middleware/auth');
 
 // Import routes
+const authRoutes = require('./routes/authRoutes');
 const videoRoutes = require('./routes/videoRoutes');
 const analysisRoutes = require('./routes/analysisRoutes');
 const resultRoutes = require('./routes/resultRoutes');
@@ -28,6 +30,7 @@ ensureDir(env.HEATMAP_DIR);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(attachUser);
 
 // Serve static files (uploads and heatmaps)
 app.use('/uploads', express.static(env.UPLOAD_DIR));
@@ -44,6 +47,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // API routes
+app.use('/api/auth', authRoutes);
 app.use('/api/video', videoRoutes);
 app.use('/api/analysis', analysisRoutes);
 app.use('/api/results', resultRoutes);
@@ -57,10 +61,16 @@ app.get('/api', (req, res) => {
         version: '1.0.0',
         endpoints: {
             health: 'GET /api/health',
+            auth: {
+                signup: 'POST /api/auth/signup',
+                login: 'POST /api/auth/login',
+                me: 'GET /api/auth/me',
+            },
             video: {
                 upload: 'POST /api/video/upload',
                 list: 'GET /api/video',
                 get: 'GET /api/video/:id',
+                delete: 'DELETE /api/video/:id',
             },
             analysis: {
                 start: 'POST /api/analysis/start/:videoId',

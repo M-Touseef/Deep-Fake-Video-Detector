@@ -26,6 +26,10 @@ const env = {
     // JWT (optional)
     JWT_SECRET: process.env.JWT_SECRET || 'default-secret-change-in-production',
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
+    AUTH_TOKEN_TTL_MS: parseInt(process.env.AUTH_TOKEN_TTL_MS) || 7 * 24 * 60 * 60 * 1000,
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL || 'admin@deepfake.com',
+    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
+    ADMIN_NAME: process.env.ADMIN_NAME || 'Admin User',
 };
 
 module.exports = env;

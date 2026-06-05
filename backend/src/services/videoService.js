@@ -1,5 +1,7 @@
 const Video = require('../models/Video');
 const AnalysisJob = require('../models/AnalysisJob');
+const Result = require('../models/Result');
+const fs = require('fs');
 const { extractMetadata } = require('../utils/videoMetadata');
 
 /**
@@ -55,6 +57,28 @@ const updateVideoStatus = async (videoId, status) => {
 };
 
 /**
+ * Delete a video plus its associated job/result records and uploaded file.
+ * @param {string} videoId - Video document ID
+ * @returns {Promise<Object|null>} Deleted video document
+ */
+const deleteVideoWithData = async (videoId) => {
+    const video = await Video.findById(videoId);
+    if (!video) {
+        return null;
+    }
+
+    if (video.filePath && fs.existsSync(video.filePath)) {
+        fs.unlinkSync(video.filePath);
+    }
+
+    await AnalysisJob.deleteOne({ videoId });
+    await Result.deleteOne({ videoId });
+    await Video.findByIdAndDelete(videoId);
+
+    return video;
+};
+
+/**
  * Get all videos with pagination
  * @param {Object} options - Query options
  * @returns {Promise<Object>} Paginated videos
@@ -93,5 +117,6 @@ module.exports = {
     createVideo,
     getVideoById,
     updateVideoStatus,
+    deleteVideoWithData,
     getVideos,
 };

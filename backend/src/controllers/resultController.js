@@ -34,6 +34,7 @@ const getResults = asyncHandler(async (req, res) => {
             data: {
                 videoId,
                 status: job.status,
+                progress: job.progress,
                 message: 'Analysis is still in progress',
             },
         });
@@ -71,7 +72,7 @@ const getResults = asyncHandler(async (req, res) => {
             summary: {
                 totalManipulatedSegments: result.manipulatedSegments.length,
                 totalFrameEvidence: result.frameEvidence.length,
-                highConfidenceFrames: result.frameEvidence.filter(f => f.confidence > 0.8).length,
+                highConfidenceFrames: result.frameEvidence.filter(f => f.score > 80).length,
             },
             video: {
                 filename: video.originalName,
