@@ -92,7 +92,9 @@ export const apiService = {
 
   // Get results
   async getResults(videoId: string) {
-    const response = await fetch(`${API_BASE_URL}/results/${videoId}`);
+    const response = await fetch(`${API_BASE_URL}/results/${videoId}`, {
+      headers: authHeaders(),
+    });
 
     return readResponse(response, 'Results fetch failed');
   },

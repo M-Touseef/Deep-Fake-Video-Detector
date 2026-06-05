@@ -3,12 +3,15 @@ const { param } = require('express-validator');
 const router = express.Router();
 
 const analysisController = require('../controllers/analysisController');
+const { requireAuth } = require('../middleware/auth');
 const { handleValidation, validateVideoId } = require('../middleware/validate');
+
+router.use(requireAuth);
 
 /**
  * @route   POST /api/analysis/start/:videoId
  * @desc    Start analysis for a video
- * @access  Public
+ * @access  Authenticated owner/admin
  */
 router.post(
     '/start/:videoId',
@@ -22,7 +25,7 @@ router.post(
 /**
  * @route   GET /api/analysis/status/:videoId
  * @desc    Get analysis status for a video
- * @access  Public
+ * @access  Authenticated owner/admin
  */
 router.get(
     '/status/:videoId',

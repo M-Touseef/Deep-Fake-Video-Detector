@@ -20,6 +20,13 @@ const startAnalysis = asyncHandler(async (req, res) => {
         });
     }
 
+    if (!videoService.canAccessVideo(video, req.user)) {
+        return res.status(403).json({
+            success: false,
+            error: 'You can only analyse your own videos',
+        });
+    }
+
     // Get or check job
     let job = await jobService.getJobByVideoId(videoId);
     if (!job) {
@@ -110,6 +117,21 @@ const processAnalysis = async (video) => {
  */
 const getAnalysisStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
+    const video = await videoService.getVideoById(videoId);
+
+    if (!video) {
+        return res.status(404).json({
+            success: false,
+            error: 'Video not found',
+        });
+    }
+
+    if (!videoService.canAccessVideo(video, req.user)) {
+        return res.status(403).json({
+            success: false,
+            error: 'You can only view analysis status for your own videos',
+        });
+    }
 
     const job = await jobService.getJobByVideoId(videoId);
 

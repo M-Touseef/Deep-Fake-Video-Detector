@@ -19,6 +19,13 @@ const getResults = asyncHandler(async (req, res) => {
         });
     }
 
+    if (!videoService.canAccessVideo(video, req.user)) {
+        return res.status(403).json({
+            success: false,
+            error: 'You can only view results for your own videos',
+        });
+    }
+
     // Check job status
     const job = await jobService.getJobByVideoId(videoId);
     if (!job) {

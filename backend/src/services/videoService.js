@@ -48,6 +48,12 @@ const validateNewsVideoDuration = (metadata) => {
     }
 };
 
+const canAccessVideo = (video, user) => {
+    if (!video || !user) return false;
+    if (user.role === 'admin') return true;
+    return video.userId?.toString() === user._id.toString();
+};
+
 /**
  * Create a new video record with metadata
  * @param {Object} fileData - Multer file object
@@ -173,8 +179,26 @@ const getVideos = async (options = {}) => {
     };
 };
 
+const cleanupExpiredVideos = async (olderThanDate) => {
+    const expiredVideos = await Video.find({
+        uploadedAt: { $lt: olderThanDate },
+    }).select('_id');
+
+    let deleted = 0;
+    for (const video of expiredVideos) {
+        const deletedVideo = await deleteVideoWithData(video._id);
+        if (deletedVideo) {
+            deleted += 1;
+        }
+    }
+
+    return deleted;
+};
+
 module.exports = {
     createVideo,
+    canAccessVideo,
+    cleanupExpiredVideos,
     NEWS_VIDEO_MIN_DURATION_SECONDS,
     NEWS_VIDEO_MAX_DURATION_SECONDS,
     getVideoById,
