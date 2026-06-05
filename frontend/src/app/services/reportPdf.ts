@@ -19,6 +19,13 @@ type ForensicReportData = {
   verdict: 'fake' | 'real';
   confidence: number;
   topkConfidence?: number;
+  confidenceLabel?: 'High confidence' | 'Medium confidence' | 'Low confidence';
+  qualityWarnings?: string[];
+  qualitySummary?: {
+    validFaceFrames?: number | null;
+    avgFaceDetectionScore?: number | null;
+    minFaceArea?: number | null;
+  };
   manipulatedSegments: Segment[];
   frameEvidence: FrameEvidence[];
   modelVersion: string | null;
@@ -29,6 +36,10 @@ type ForensicReportData = {
     duration: number | null;
     fps: number | null;
     frameCount: number | null;
+    sourceUrl?: string | null;
+    sourceHost?: string | null;
+    claim?: string | null;
+    verificationMode?: 'news-video' | null;
   };
 };
 
@@ -90,7 +101,7 @@ const base64ToBytes = (base64: string) => {
 };
 
 const makeWarnings = (result: ForensicReportData) => {
-  const warnings: string[] = [];
+  const warnings: string[] = [...(result.qualityWarnings || [])];
 
   if (result.frameEvidence.length === 0) {
     warnings.push('No Grad-CAM frame evidence was returned. Review analysis logs before making a decision.');
@@ -109,7 +120,7 @@ const makeWarnings = (result: ForensicReportData) => {
   }
 
   if (warnings.length === 0) {
-    warnings.push('No no-face or low-quality warning was reported for this completed analysis.');
+    warnings.push('No face-visibility, frame-count, compression, or no-face warning was reported for this completed analysis.');
   }
 
   return warnings;
@@ -126,6 +137,62 @@ const makeConclusion = (result: ForensicReportData) => {
   }
 
   return `The analysed video is classified as likely authentic with ${confPct}% confidence. This report should be treated as decision support, not as sole legal or forensic proof.`;
+};
+
+const getConfidenceLabel = (result: ForensicReportData) =>
+  result.confidenceLabel
+  || (result.confidence > 0.85
+    ? 'High confidence'
+    : result.confidence >= 0.6
+      ? 'Medium confidence'
+      : 'Low confidence');
+
+const getPlainLanguageSummary = (result: ForensicReportData, warnings: string[]) => {
+  const highSegments = result.manipulatedSegments.filter(seg => seg.verdict?.toUpperCase() === 'HIGH').length;
+  const isInconclusive = result.confidence < 0.6;
+  const hasQualityWarning = warnings.length > 0
+    && !warnings.every(warning => warning.startsWith('No face-visibility'));
+
+  if (isInconclusive) {
+    return {
+      trustLabel: 'Uncertain',
+      meaning: 'The system found some signals, but the confidence is too low to treat the result as reliable.',
+      why: 'This can happen when the face is hard to see, there are few usable frames, or the video is compressed.',
+      next: 'Do not share this as verified. Look for the original source or compare it with trusted reporting.',
+    };
+  }
+
+  if (result.verdict === 'fake') {
+    return {
+      trustLabel: result.confidence > 0.85 ? 'Very likely manipulated' : 'Probably manipulated',
+      meaning: 'The model found facial patterns that look suspicious compared with authentic video examples.',
+      why: highSegments > 0
+        ? `${highSegments} time segment(s) and the highlighted face regions contributed most to the result.`
+        : 'The overall face evidence looked suspicious, even though no single high-risk time segment dominated.',
+      next: hasQualityWarning
+        ? 'Treat this as a warning signal and review the quality warnings before making a decision.'
+        : 'Avoid sharing it as real until you can confirm the source from trusted channels.',
+    };
+  }
+
+  return {
+    trustLabel: result.confidence > 0.85 ? 'Very likely real' : 'Probably real',
+    meaning: 'The model did not find major manipulation patterns in the visible face evidence.',
+    why: hasQualityWarning
+      ? 'However, the video quality may limit how much confidence you should place in this result.'
+      : 'The available face evidence passed the main quality checks and did not trigger strong suspicious regions.',
+    next: 'Still check where the video came from before treating it as proven real.',
+  };
+};
+
+const getTrustChecklist = (result: ForensicReportData, warnings: string[]) => {
+  const warningsText = warnings.join(' ').toLowerCase();
+  return [
+    `Face clearly visible: ${warningsText.includes('low face visibility') ? 'Needs caution' : 'Passed'}`,
+    `Enough usable moments: ${warningsText.includes('few valid frames') ? 'Needs caution' : 'Passed'}`,
+    `Video quality: ${warningsText.includes('heavy compression') ? 'Compression warning' : 'No major compression warning'}`,
+    `Suspicious moments reviewable: ${result.frameEvidence.length > 0 ? 'Heatmap evidence included' : 'No frame evidence returned'}`,
+  ];
 };
 
 class PdfBuilder {
@@ -241,9 +308,19 @@ export const downloadForensicReportPdf = (result: ForensicReportData) => {
   const topkPct = result.topkConfidence ? Math.round(result.topkConfidence * 100) : null;
   const warnings = makeWarnings(result);
   const conclusion = makeConclusion(result);
+  const plainSummary = getPlainLanguageSummary(result, warnings);
+  const trustChecklist = getTrustChecklist(result, warnings);
   const reportDate = new Date().toLocaleString();
   const analysisDate = new Date(result.createdAt).toLocaleString();
   const verdictLabel = result.verdict === 'fake' ? 'Likely Manipulated' : 'Likely Authentic';
+  const isNewsVerification = result.video.verificationMode === 'news-video';
+  const recommendedAction = result.confidence < 0.6
+    ? 'Needs review'
+    : result.verdict === 'fake'
+      ? 'Do not share as verified'
+      : warnings.length > 0 && !warnings.every(warning => warning.startsWith('No face-visibility'))
+        ? 'Share with caution'
+        : 'Likely safe with source check';
 
   const page1: string[] = [];
   addText(page1, 'ProofOfReality Forensic Evidence Report', MARGIN, 790, 20);
@@ -254,6 +331,10 @@ export const downloadForensicReportPdf = (result: ForensicReportData) => {
   addText(page1, `Verdict: ${verdictLabel}`, MARGIN, y, 14);
   y -= 22;
   addText(page1, `Detection confidence: ${confPct}%`, MARGIN, y, 12);
+  y -= 18;
+  addText(page1, `Confidence calibration: ${getConfidenceLabel(result)}`, MARGIN, y, 12);
+  y -= 18;
+  addText(page1, `User trust label: ${plainSummary.trustLabel}`, MARGIN, y, 12);
   y -= 18;
   if (topkPct !== null) {
     addText(page1, `Top-K confidence: ${topkPct}%`, MARGIN, y, 12);
@@ -274,13 +355,48 @@ export const downloadForensicReportPdf = (result: ForensicReportData) => {
     y -= 17;
   });
 
+  if (isNewsVerification) {
+    y = addSectionTitle(page1, 'News Verification Context', y - 20);
+    [
+      `Source host: ${result.video.sourceHost || 'Not reported'}`,
+      `Source URL: ${result.video.sourceUrl || 'Not reported'}`,
+      `Claim/headline: ${result.video.claim || 'Not reported'}`,
+      `Recommended action: ${recommendedAction}`,
+      'Note: This checks video manipulation, not whether the claim itself is factually true.',
+    ].forEach(line => {
+      y = addWrappedText(page1, line, MARGIN, y, 9, 96) - 2;
+    });
+  }
+
+  if (result.qualitySummary) {
+    y = addSectionTitle(page1, 'Face Quality Summary', y - 20);
+    [
+      `Valid face frames: ${result.qualitySummary.validFaceFrames ?? 'Not reported'}`,
+      `Average face detection score: ${result.qualitySummary.avgFaceDetectionScore != null ? `${Math.round(result.qualitySummary.avgFaceDetectionScore * 100)}%` : 'Not reported'}`,
+      `Minimum face area: ${result.qualitySummary.minFaceArea ?? 'Not reported'}`,
+    ].forEach(line => {
+      addText(page1, line, MARGIN, y, 11);
+      y -= 17;
+    });
+  }
+
   y = addSectionTitle(page1, 'Warnings', y - 20);
   warnings.forEach(warning => {
     y = addWrappedText(page1, `- ${warning}`, MARGIN, y, 10, 94) - 3;
   });
 
-  y = addSectionTitle(page1, 'Human-Readable Conclusion', y - 16);
-  addWrappedText(page1, conclusion, MARGIN, y, 11, 86);
+  y = addSectionTitle(page1, 'Plain-Language Guidance', y - 16);
+  y = addWrappedText(page1, `What this means: ${plainSummary.meaning}`, MARGIN, y, 10, 88) - 5;
+  y = addWrappedText(page1, `Why: ${plainSummary.why}`, MARGIN, y, 10, 88) - 5;
+  y = addWrappedText(page1, `What to do next: ${plainSummary.next}`, MARGIN, y, 10, 88) - 5;
+
+  y = addSectionTitle(page1, 'Can I Trust This Video Checklist', y - 8);
+  trustChecklist.forEach(item => {
+    y = addWrappedText(page1, `- ${item}`, MARGIN, y, 9, 94) - 2;
+  });
+
+  y = addSectionTitle(page1, 'Human-Readable Conclusion', y - 12);
+  addWrappedText(page1, conclusion, MARGIN, y, 10, 86);
 
   pdf.addPage(page1, []);
 

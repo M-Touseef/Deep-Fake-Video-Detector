@@ -1,5 +1,5 @@
 const express = require('express');
-const { param } = require('express-validator');
+const { body, param } = require('express-validator');
 const router = express.Router();
 
 const videoController = require('../controllers/videoController');
@@ -16,6 +16,37 @@ router.post(
     '/upload',
     requireAuth,
     uploadMiddleware('video'),
+    [
+        body('verificationMode')
+            .optional({ checkFalsy: true })
+            .equals('news-video')
+            .withMessage('Verification mode must be news-video'),
+        body('sourceUrl')
+            .if(body('verificationMode').equals('news-video'))
+            .trim()
+            .isLength({ min: 1, max: 500 })
+            .withMessage('Source URL is required and must be 500 characters or less')
+            .bail()
+            .custom((value) => {
+                let parsed;
+                try {
+                    parsed = new URL(value);
+                } catch (error) {
+                    throw new Error('Source URL must be a valid URL');
+                }
+
+                if (!['http:', 'https:'].includes(parsed.protocol)) {
+                    throw new Error('Source URL must start with http or https');
+                }
+                return true;
+            }),
+        body('claim')
+            .if(body('verificationMode').equals('news-video'))
+            .trim()
+            .isLength({ min: 10, max: 280 })
+            .withMessage('Claim/headline must be 10-280 characters'),
+        handleValidation,
+    ],
     videoController.uploadVideo
 );
 

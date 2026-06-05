@@ -4,15 +4,71 @@ const Result = require('../models/Result');
 const fs = require('fs');
 const { extractMetadata } = require('../utils/videoMetadata');
 
+const NEWS_VIDEO_MIN_DURATION_SECONDS = 5;
+const NEWS_VIDEO_MAX_DURATION_SECONDS = 120;
+
+const normaliseVerificationContext = (context = {}) => {
+    if (context.verificationMode !== 'news-video') {
+        return {
+            sourceUrl: null,
+            sourceHost: null,
+            claim: null,
+            verificationMode: null,
+        };
+    }
+
+    const sourceUrl = context.sourceUrl.trim();
+    const parsed = new URL(sourceUrl);
+
+    return {
+        sourceUrl,
+        sourceHost: parsed.hostname.replace(/^www\./i, '').toLowerCase(),
+        claim: context.claim.trim(),
+        verificationMode: 'news-video',
+    };
+};
+
+const validateNewsVideoDuration = (metadata) => {
+    if (!metadata.duration) {
+        const err = new Error('Could not read video duration. Please upload a valid MP4.');
+        err.statusCode = 400;
+        throw err;
+    }
+
+    if (metadata.duration < NEWS_VIDEO_MIN_DURATION_SECONDS) {
+        const err = new Error('Video must be at least 5 seconds.');
+        err.statusCode = 400;
+        throw err;
+    }
+
+    if (metadata.duration > NEWS_VIDEO_MAX_DURATION_SECONDS) {
+        const err = new Error('Video must be 2 minutes or less.');
+        err.statusCode = 400;
+        throw err;
+    }
+};
+
 /**
  * Create a new video record with metadata
  * @param {Object} fileData - Multer file object
  * @param {string} userId - Optional user ID
  * @returns {Promise<Object>} Created video document
  */
-const createVideo = async (fileData, userId = null) => {
+const createVideo = async (fileData, userId = null, verificationContext = {}) => {
     // Extract video metadata
     const metadata = await extractMetadata(fileData.path);
+    const context = normaliseVerificationContext(verificationContext);
+
+    if (context.verificationMode === 'news-video') {
+        try {
+            validateNewsVideoDuration(metadata);
+        } catch (error) {
+            if (fileData.path && fs.existsSync(fileData.path)) {
+                fs.unlinkSync(fileData.path);
+            }
+            throw error;
+        }
+    }
 
     const video = new Video({
         userId,
@@ -26,6 +82,10 @@ const createVideo = async (fileData, userId = null) => {
         frameCount: metadata.frameCount,
         width: metadata.width,
         height: metadata.height,
+        sourceUrl: context.sourceUrl,
+        sourceHost: context.sourceHost,
+        claim: context.claim,
+        verificationMode: context.verificationMode,
         status: 'uploaded',
     });
 
@@ -115,6 +175,8 @@ const getVideos = async (options = {}) => {
 
 module.exports = {
     createVideo,
+    NEWS_VIDEO_MIN_DURATION_SECONDS,
+    NEWS_VIDEO_MAX_DURATION_SECONDS,
     getVideoById,
     updateVideoStatus,
     deleteVideoWithData,

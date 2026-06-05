@@ -4,6 +4,30 @@ const fs = require('fs');
 const Result = require('../models/Result');
 const env = require('../config/env');
 
+const getConfidenceLabel = (confidence) => {
+    if (confidence > 0.85) return 'High confidence';
+    if (confidence >= 0.60) return 'Medium confidence';
+    return 'Low confidence';
+};
+
+const getCompressionWarning = (video) => {
+    const duration = Number(video.duration || 0);
+    const fileSize = Number(video.fileSize || 0);
+    const estimatedBitrate = duration > 0 && fileSize > 0
+        ? (fileSize * 8) / duration
+        : null;
+
+    if (estimatedBitrate !== null && estimatedBitrate < 500000) {
+        return 'Heavy compression. Low estimated bitrate may hide or create forensic artifacts.';
+    }
+
+    if (video.width && video.height && Math.min(video.width, video.height) < 360) {
+        return 'Heavy compression. Low source resolution may reduce forensic reliability.';
+    }
+
+    return null;
+};
+
 /**
  * Call the Flask ML service to analyse a video.
  *
@@ -66,6 +90,17 @@ const analyzeVideo = async (video) => {
     const verdict = ml.prediction === 'Fake' ? 'fake' : 'real';
     const confidence = +(ml.confidence / 100).toFixed(4);           // 0-1
     const topkConfidence = +(ml.topk_confidence / 100).toFixed(4);  // 0-1
+    const confidenceLabel = getConfidenceLabel(confidence);
+    const qualitySummary = {
+        validFaceFrames: ml.quality_summary?.valid_face_frames ?? null,
+        avgFaceDetectionScore: ml.quality_summary?.avg_face_detection_score ?? null,
+        minFaceArea: ml.quality_summary?.min_face_area ?? null,
+    };
+    const qualityWarnings = [...(ml.quality_summary?.warnings || [])];
+    const compressionWarning = getCompressionWarning(video);
+    if (compressionWarning) {
+        qualityWarnings.push(compressionWarning);
+    }
 
     // segments → manipulatedSegments
     const manipulatedSegments = (ml.segments || []).map((seg) => {
@@ -98,6 +133,9 @@ const analyzeVideo = async (video) => {
         verdict,
         confidence,
         topkConfidence,
+        confidenceLabel,
+        qualityWarnings,
+        qualitySummary,
         manipulatedSegments,
         frameEvidence,
         modelVersion:   'SpatialDeepfakeDetector-v1',
@@ -116,6 +154,9 @@ const saveResult = async (videoId, mlResponse) => {
         verdict:              mlResponse.verdict         || 'real',
         confidence:           mlResponse.confidence      || 0,
         topkConfidence:       mlResponse.topkConfidence  || 0,
+        confidenceLabel:      mlResponse.confidenceLabel || 'Low confidence',
+        qualityWarnings:      mlResponse.qualityWarnings || [],
+        qualitySummary:       mlResponse.qualitySummary  || {},
         manipulatedSegments:  mlResponse.manipulatedSegments || [],
         frameEvidence:        mlResponse.frameEvidence   || [],
         modelVersion:         mlResponse.modelVersion    || null,

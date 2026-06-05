@@ -50,6 +50,20 @@ const resultSchema = new mongoose.Schema({
         min: 0,
         max: 1,
     },
+    confidenceLabel: {
+        type: String,
+        enum: ['High confidence', 'Medium confidence', 'Low confidence'],
+        default: 'Low confidence',
+    },
+    qualityWarnings: {
+        type: [String],
+        default: [],
+    },
+    qualitySummary: {
+        validFaceFrames: { type: Number, default: null },
+        avgFaceDetectionScore: { type: Number, default: null },
+        minFaceArea: { type: Number, default: null },
+    },
     manipulatedSegments: [manipulatedSegmentSchema],
     frameEvidence: [frameEvidenceSchema],
     modelVersion: {

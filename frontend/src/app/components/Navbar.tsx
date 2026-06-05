@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Shield, Home, Upload, History, Info, LogOut, LayoutDashboard } from 'lucide-react';
+import { Shield, Home, Upload, History, Info, LogOut, LayoutDashboard, Newspaper } from 'lucide-react';
 import { useAuth } from './AuthContext';
 
 export const Navbar = () => {
@@ -45,6 +45,7 @@ export const Navbar = () => {
               <>
                 {navLink('/home', <Home className="h-4 w-4" />, 'Home')}
                 {navLink('/upload', <Upload className="h-4 w-4" />, 'Analyse')}
+                {navLink('/verify-news', <Newspaper className="h-4 w-4" />, 'Verify News')}
                 {navLink('/history', <History className="h-4 w-4" />, 'History')}
                 {navLink('/about', <Info className="h-4 w-4" />, 'About')}
               </>

@@ -7,6 +7,7 @@ import { LoginPage } from './components/LoginPage';
 import { HomePage } from './components/HomePage';
 import { AboutPage } from './components/AboutPage';
 import { UploadPage } from './components/UploadPage';
+import { VerifyNewsPage } from './components/VerifyNewsPage';
 import { ResultsPage } from './components/ResultsPage';
 import { HistoryPage } from './components/HistoryPage';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -45,6 +46,15 @@ export default function App() {
               element={
                 <ProtectedRoute allowedRole="user">
                   <UploadPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/verify-news"
+              element={
+                <ProtectedRoute allowedRole="user">
+                  <VerifyNewsPage />
                 </ProtectedRoute>
               }
             />

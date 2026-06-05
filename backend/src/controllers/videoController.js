@@ -15,8 +15,16 @@ const uploadVideo = asyncHandler(async (req, res) => {
         });
     }
 
+    const verificationContext = req.body?.verificationMode === 'news-video'
+        ? {
+            verificationMode: req.body.verificationMode,
+            sourceUrl: req.body.sourceUrl,
+            claim: req.body.claim,
+        }
+        : {};
+
     // Create video record with metadata
-    const video = await videoService.createVideo(req.file, req.user?._id || null);
+    const video = await videoService.createVideo(req.file, req.user?._id || null, verificationContext);
 
     // Create analysis job
     const job = await jobService.createJob(video._id);
@@ -32,6 +40,10 @@ const uploadVideo = asyncHandler(async (req, res) => {
             frameCount: video.frameCount,
             width: video.width,
             height: video.height,
+            sourceUrl: video.sourceUrl,
+            sourceHost: video.sourceHost,
+            claim: video.claim,
+            verificationMode: video.verificationMode,
             status: video.status,
             jobId: job._id,
             uploadedAt: video.uploadedAt,

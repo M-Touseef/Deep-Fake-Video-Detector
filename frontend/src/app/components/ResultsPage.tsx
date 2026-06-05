@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, CheckCircle, XCircle, FileVideo, Clock,
   Shield, AlertTriangle, Cpu, TrendingUp, Eye,
-  ChevronRight, Activity, Download,
+  ChevronRight, Activity, Download, HelpCircle, ListChecks, Search,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────────
@@ -34,6 +34,13 @@ interface ResultData {
   verdict: 'fake' | 'real';
   confidence: number;         // 0–1
   topkConfidence?: number;    // 0–1
+  confidenceLabel?: 'High confidence' | 'Medium confidence' | 'Low confidence';
+  qualityWarnings?: string[];
+  qualitySummary?: {
+    validFaceFrames?: number | null;
+    avgFaceDetectionScore?: number | null;
+    minFaceArea?: number | null;
+  };
   manipulatedSegments: ManipulatedSegment[];
   frameEvidence: FrameEvidence[];
   modelVersion: string | null;
@@ -44,6 +51,10 @@ interface ResultData {
     duration: number | null;
     fps: number | null;
     frameCount: number | null;
+    sourceUrl?: string | null;
+    sourceHost?: string | null;
+    claim?: string | null;
+    verificationMode?: 'news-video' | null;
   };
 }
 
@@ -101,6 +112,131 @@ const getEvidenceExplanation = (frame?: FrameEvidence) => {
   return 'Low activation was detected. This frame is included for comparison but is not a strong standalone manipulation indicator.';
 };
 
+const getConfidenceCalibration = (
+  confidence: number,
+  label?: ResultData['confidenceLabel'],
+) => {
+  const inferredLabel = label
+    || (confidence > 0.85
+      ? 'High confidence'
+      : confidence >= 0.6
+        ? 'Medium confidence'
+        : 'Low confidence');
+
+  if (inferredLabel === 'High confidence') {
+    return {
+      label: inferredLabel,
+      style: 'bg-green-500/10 text-green-300 border-green-500/30',
+      note: 'Model confidence is above 85%. Use evidence review for confirmation.',
+    };
+  }
+
+  if (inferredLabel === 'Medium confidence') {
+    return {
+      label: inferredLabel,
+      style: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+      note: 'Model confidence is between 60% and 85%. Human review is recommended.',
+    };
+  }
+
+  return {
+    label: inferredLabel,
+    style: 'bg-red-500/10 text-red-300 border-red-500/30',
+    note: 'Model confidence is below 60%. Treat the result as inconclusive.',
+  };
+};
+
+const getTrustSummary = (
+  result: ResultData,
+  qualityWarnings: string[],
+  highSegmentCount: number,
+) => {
+  const confidence = result.confidence;
+  const isFake = result.verdict === 'fake';
+  const isInconclusive = confidence < 0.6;
+  const hasQualityWarning = qualityWarnings.length > 0;
+  const trustLabel = isInconclusive
+    ? 'Uncertain'
+    : isFake
+      ? confidence > 0.85 ? 'Very likely manipulated' : 'Probably manipulated'
+      : confidence > 0.85 ? 'Very likely real' : 'Probably real';
+
+  if (isInconclusive) {
+    return {
+      trustLabel,
+      headline: 'We cannot make a strong call on this video.',
+      meaning: 'The system found some signals, but the confidence is too low to treat the result as reliable.',
+      why: 'This can happen when the face is hard to see, there are few usable frames, or the video is compressed.',
+      next: 'Do not share this as verified. Look for the original source or compare it with trusted reporting.',
+      style: 'border-amber-500/30 bg-amber-500/10 text-amber-100',
+    };
+  }
+
+  if (isFake) {
+    return {
+      trustLabel,
+      headline: 'This video shows signs of manipulation.',
+      meaning: 'The model found facial patterns that look suspicious compared with authentic video examples.',
+      why: highSegmentCount > 0
+        ? `${highSegmentCount} time segment${highSegmentCount > 1 ? 's' : ''} and the highlighted face regions contributed most to the result.`
+        : 'The overall face evidence looked suspicious, even though no single high-risk time segment dominated.',
+      next: hasQualityWarning
+        ? 'Treat this as a warning signal and review the quality warnings before making a decision.'
+        : 'Avoid sharing it as real until you can confirm the source from trusted channels.',
+      style: 'border-red-500/30 bg-red-500/10 text-red-100',
+    };
+  }
+
+  return {
+    trustLabel,
+    headline: 'This video does not show strong deepfake signs.',
+    meaning: 'The model did not find major manipulation patterns in the visible face evidence.',
+    why: hasQualityWarning
+      ? 'However, the video quality may limit how much confidence you should place in this result.'
+      : 'The available face evidence passed the main quality checks and did not trigger strong suspicious regions.',
+    next: 'Still check where the video came from before treating it as proven real.',
+    style: 'border-green-500/30 bg-green-500/10 text-green-100',
+  };
+};
+
+const getTrustChecklist = (
+  result: ResultData,
+  qualityWarnings: string[],
+  highSegmentCount: number,
+) => {
+  const warningsText = qualityWarnings.join(' ').toLowerCase();
+  return [
+    {
+      label: 'Face is clearly visible',
+      ok: !warningsText.includes('low face visibility') && result.frameEvidence.length > 0,
+      detail: warningsText.includes('low face visibility')
+        ? 'Face visibility warning reported.'
+        : 'Face evidence was available for review.',
+    },
+    {
+      label: 'Enough usable moments were found',
+      ok: !warningsText.includes('few valid frames'),
+      detail: warningsText.includes('few valid frames')
+        ? 'Only a small number of usable face frames were detected.'
+        : 'The analysis had enough usable face frames.',
+    },
+    {
+      label: 'Video quality is not heavily compressed',
+      ok: !warningsText.includes('heavy compression'),
+      detail: warningsText.includes('heavy compression')
+        ? 'Compression may hide or create visual artifacts.'
+        : 'No major compression warning was reported.',
+    },
+    {
+      label: 'Suspicious moments are easy to review',
+      ok: result.frameEvidence.length > 0 || highSegmentCount === 0,
+      detail: result.frameEvidence.length > 0
+        ? 'Top suspicious frames are shown with heatmaps.'
+        : 'No frame-level evidence was returned.',
+    },
+  ];
+};
+
 /* ─────────────────────────────────────────────────────────────
    Results Page
 ───────────────────────────────────────────────────────────── */
@@ -155,6 +291,19 @@ export const ResultsPage = () => {
   const procSec = result.processingTime ? (result.processingTime / 1000).toFixed(1) : null;
   const highSegs = result.manipulatedSegments.filter(s => s.verdict?.toUpperCase() === 'HIGH');
   const currentFrame = result.frameEvidence[activeFrame];
+  const calibration = getConfidenceCalibration(result.confidence, result.confidenceLabel);
+  const qualityWarnings = result.qualityWarnings || [];
+  const qualitySummary = result.qualitySummary;
+  const trustSummary = getTrustSummary(result, qualityWarnings, highSegs.length);
+  const trustChecklist = getTrustChecklist(result, qualityWarnings, highSegs.length);
+  const isNewsVerification = result.video?.verificationMode === 'news-video';
+  const recommendedAction = result.confidence < 0.6
+    ? 'Needs review'
+    : isFake
+      ? 'Do not share as verified'
+      : qualityWarnings.length > 0
+        ? 'Share with caution'
+        : 'Likely safe with source check';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white">
@@ -207,6 +356,16 @@ export const ResultsPage = () => {
                     : `No significant deepfake artifacts were detected. The video appears to be authentic with ${confPct}% confidence.`}
                 </p>
 
+                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold mb-4 ${calibration.style}`}>
+                  <Shield className="h-3.5 w-3.5" />
+                  {calibration.label}
+                </div>
+
+                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold mb-4 ml-2 ${trustSummary.style}`}>
+                  <HelpCircle className="h-3.5 w-3.5" />
+                  {trustSummary.trustLabel}
+                </div>
+
                 <div className="flex items-center gap-2 text-slate-500 text-sm">
                   <FileVideo className="h-4 w-4" />
                   <span className="truncate max-w-xs">{result.video?.filename || 'Unknown file'}</span>
@@ -221,6 +380,133 @@ export const ResultsPage = () => {
                   <p className="text-xs text-slate-400 leading-tight mt-0.5">Top‑K<br />Confidence</p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-5 gap-6 mb-8">
+          <div className={`lg:col-span-3 rounded-2xl border p-6 ${trustSummary.style}`}>
+            <div className="flex items-center gap-2 mb-4">
+              <HelpCircle className="h-5 w-5" />
+              <h2 className="text-lg font-bold text-white">What This Means</h2>
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-3">{trustSummary.headline}</h3>
+            <div className="grid md:grid-cols-3 gap-3">
+              {[
+                { title: 'Meaning', text: trustSummary.meaning },
+                { title: 'Why', text: trustSummary.why },
+                { title: 'Next step', text: trustSummary.next },
+              ].map(item => (
+                <div key={item.title} className="rounded-xl bg-slate-950/30 border border-white/10 p-4">
+                  <p className="text-xs uppercase tracking-wide text-white/50 mb-2">{item.title}</p>
+                  <p className="text-sm leading-relaxed text-white/85">{item.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="lg:col-span-2 rounded-2xl border border-slate-700/60 bg-slate-800/60 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <ListChecks className="h-5 w-5 text-blue-300" />
+              <h2 className="text-lg font-bold text-white">Can I Trust This Video?</h2>
+            </div>
+            <div className="space-y-3">
+              {trustChecklist.map(item => (
+                <div key={item.label} className="flex gap-3 rounded-xl bg-slate-900/60 border border-slate-700/60 p-3">
+                  {item.ok
+                    ? <CheckCircle className="h-5 w-5 text-green-300 shrink-0 mt-0.5" />
+                    : <AlertTriangle className="h-5 w-5 text-amber-300 shrink-0 mt-0.5" />}
+                  <div>
+                    <p className="text-sm font-semibold text-white">{item.label}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{item.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 rounded-xl bg-blue-500/10 border border-blue-500/20 p-3 text-sm text-blue-100 flex gap-2">
+              <Search className="h-4 w-4 shrink-0 mt-0.5" />
+              Check the original source, date, and trusted news coverage before you share the video as real.
+            </div>
+          </div>
+        </div>
+
+        {isNewsVerification && (
+          <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-6 mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <FileVideo className="h-5 w-5 text-blue-300" />
+              <h2 className="text-lg font-bold text-white">News Verification Context</h2>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="rounded-xl bg-slate-950/30 border border-white/10 p-4">
+                <p className="text-xs uppercase tracking-wide text-blue-200/70 mb-2">Source</p>
+                {result.video.sourceUrl ? (
+                  <a
+                    href={result.video.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-blue-200 hover:text-blue-100 break-all"
+                  >
+                    {result.video.sourceHost || result.video.sourceUrl}
+                  </a>
+                ) : (
+                  <p className="text-sm text-slate-400">Not reported</p>
+                )}
+              </div>
+              <div className="rounded-xl bg-slate-950/30 border border-white/10 p-4">
+                <p className="text-xs uppercase tracking-wide text-blue-200/70 mb-2">Recommended action</p>
+                <p className="text-sm font-semibold text-white">{recommendedAction}</p>
+              </div>
+              <div className="md:col-span-2 rounded-xl bg-slate-950/30 border border-white/10 p-4">
+                <p className="text-xs uppercase tracking-wide text-blue-200/70 mb-2">Claim/headline</p>
+                <p className="text-sm text-white leading-relaxed">{result.video.claim || 'Not reported'}</p>
+              </div>
+              <div className="md:col-span-2 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+                This checks video manipulation, not whether the claim itself is factually true. Confirm the story with trusted reporting before sharing.
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 mb-8">
+          <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className={`h-5 w-5 ${qualityWarnings.length ? 'text-amber-300' : 'text-green-300'}`} />
+                <h2 className="text-lg font-bold text-white">Confidence Calibration & Limitations</h2>
+              </div>
+              <p className="text-sm text-slate-400 mb-4">{calibration.note}</p>
+              {qualityWarnings.length > 0 ? (
+                <div className="space-y-2">
+                  {qualityWarnings.map((warning, index) => (
+                    <div key={`${warning}-${index}`} className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                      {warning}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-green-500/20 bg-green-500/10 px-3 py-2 text-sm text-green-100">
+                  No face-visibility, frame-count, compression, or no-face warning was reported for this completed analysis.
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 lg:w-[360px]">
+              <div className="rounded-xl bg-slate-900/70 border border-slate-700/70 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Valid Faces</p>
+                <p className="text-xl font-bold text-white">{qualitySummary?.validFaceFrames ?? '—'}</p>
+              </div>
+              <div className="rounded-xl bg-slate-900/70 border border-slate-700/70 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Face Score</p>
+                <p className="text-xl font-bold text-white">
+                  {qualitySummary?.avgFaceDetectionScore != null
+                    ? `${Math.round(qualitySummary.avgFaceDetectionScore * 100)}%`
+                    : '—'}
+                </p>
+              </div>
+              <div className="rounded-xl bg-slate-900/70 border border-slate-700/70 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Min Area</p>
+                <p className="text-xl font-bold text-white">{qualitySummary?.minFaceArea ?? '—'}</p>
+              </div>
             </div>
           </div>
         </div>

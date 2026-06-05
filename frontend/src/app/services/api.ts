@@ -10,6 +10,9 @@ const authHeaders = () => {
 const readResponse = async (response: Response, fallback: string) => {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (Array.isArray(payload.errors) && payload.errors.length > 0) {
+      throw new Error(payload.errors.map((err: any) => err.message).join('\n'));
+    }
     throw new Error(payload.error || payload.message || fallback);
   }
   return payload;
@@ -45,9 +48,19 @@ export const apiService = {
   },
 
   // Upload video
-  async uploadVideo(file: File) {
+  async uploadVideo(file: File, context?: { sourceUrl?: string; claim?: string; verificationMode?: 'news-video' }) {
     const formData = new FormData();
     formData.append('video', file);
+
+    if (context?.verificationMode) {
+      formData.append('verificationMode', context.verificationMode);
+    }
+    if (context?.sourceUrl) {
+      formData.append('sourceUrl', context.sourceUrl);
+    }
+    if (context?.claim) {
+      formData.append('claim', context.claim);
+    }
 
     const response = await fetch(`${API_BASE_URL}/video/upload`, {
       method: 'POST',

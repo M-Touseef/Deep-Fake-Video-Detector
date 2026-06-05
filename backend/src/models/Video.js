@@ -47,6 +47,25 @@ const videoSchema = new mongoose.Schema({
         type: Number,
         default: null,
     },
+    sourceUrl: {
+        type: String,
+        default: null,
+        maxlength: 500,
+    },
+    sourceHost: {
+        type: String,
+        default: null,
+    },
+    claim: {
+        type: String,
+        default: null,
+        maxlength: 280,
+    },
+    verificationMode: {
+        type: String,
+        enum: ['news-video', null],
+        default: null,
+    },
     status: {
         type: String,
         enum: ['uploaded', 'processing', 'analyzed', 'failed'],

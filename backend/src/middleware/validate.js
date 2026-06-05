@@ -1,4 +1,5 @@
 const { validationResult } = require('express-validator');
+const fs = require('fs');
 
 /**
  * Middleware to check validation results
@@ -7,6 +8,10 @@ const handleValidation = (req, res, next) => {
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
+        if (req.file?.path && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+
         return res.status(400).json({
             success: false,
             errors: errors.array().map(err => ({

@@ -165,6 +165,41 @@ def _explain_activation_region(cam):
     }
 
 
+def _build_quality_summary(frame_meta):
+    """
+    Summarise face extraction quality for responsible confidence reporting.
+    Duplicate padded frames are collapsed by timestamp so warnings reflect
+    how many genuinely usable frames were found before padding.
+    """
+    unique_by_ts = {}
+    for meta in frame_meta:
+        unique_by_ts.setdefault(meta['timestamp'], meta)
+
+    unique_meta = list(unique_by_ts.values())
+    det_scores = [float(meta.get('det_score', 0)) for meta in unique_meta]
+    face_areas = [int(meta.get('face_area', 0)) for meta in unique_meta]
+    valid_face_frames = len(unique_meta)
+    avg_det_score = float(np.mean(det_scores)) if det_scores else 0.0
+    min_face_area = int(min(face_areas)) if face_areas else 0
+
+    warnings = []
+    if valid_face_frames < 8:
+        warnings.append(
+            'Few valid frames. The video had limited usable face frames, so temporal evidence may be less reliable.'
+        )
+    if avg_det_score < 0.82 or min_face_area < 2500:
+        warnings.append(
+            'Low face visibility. Small or weak face detections can reduce model reliability.'
+        )
+
+    return {
+        'valid_face_frames': valid_face_frames,
+        'avg_face_detection_score': round(avg_det_score, 3),
+        'min_face_area': min_face_area,
+        'warnings': warnings,
+    }
+
+
 def _render_heatmap_overlay(face_rgb, cam, border_color=None,
                              label_top=None, label_bot=None):
     """
@@ -356,6 +391,7 @@ def predict():
             'topk_confidence': analysis['topk_confidence'],
             'segments':        analysis['segments'],
             'top3_frames':     analysis['top3_frames'],
+            'quality_summary': _build_quality_summary(frame_meta),
         })
 
     except NoFaceDetectedError as e:
