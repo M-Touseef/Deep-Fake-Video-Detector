@@ -1,10 +1,8 @@
 # Backend Production Deployment
 
-The backend needs three runtime pieces:
+The backend needs one runtime process:
 
 1. API web process: `npm start`
-2. Analysis worker process: `npm run worker`
-3. Redis queue shared by both processes
 
 It also needs MongoDB and the deployed ML service URL.
 
@@ -15,7 +13,6 @@ Use `backend/.env.production.example` as the template.
 Required secrets:
 
 - `MONGODB_URI`
-- `REDIS_URL`
 - `ML_SERVICE_URL`
 - `JWT_SECRET`
 - `ADMIN_PASSWORD`
@@ -26,15 +23,16 @@ Required secrets:
 ML_SERVICE_URL=https://deepfake-ml-api.eastus.azurecontainerapps.io/predict
 ```
 
-## Render Setup
+## Free Host Setup
 
-This repo includes `render.yaml` at the repository root. It defines:
+Deploy `backend` as a normal Node web service with:
 
-- `deepfake-backend-api`: Express API service
-- `deepfake-analysis-worker`: BullMQ worker service
-- `deepfake-redis`: managed Redis service
+```bash
+npm ci
+npm start
+```
 
-Render will still ask for unsynced secrets:
+Set these secrets in the host dashboard:
 
 - `MONGODB_URI`
 - `ML_SERVICE_URL`

@@ -1,7 +1,7 @@
 const { asyncHandler } = require('../middleware/errorHandler');
 const jobService = require('../services/jobService');
 const videoService = require('../services/videoService');
-const { enqueueAnalysis } = require('../queues/analysisQueue');
+const mlService = require('../services/mlService');
 
 /**
  * Start analysis for a video
@@ -46,16 +46,48 @@ const startAnalysis = asyncHandler(async (req, res) => {
         });
     }
 
-    await enqueueAnalysis(videoId);
+    let progressTimer = null;
 
-    // Send immediate response
+    try {
+        await jobService.startJob(videoId);
+        await jobService.updateJobProgress(videoId, 20);
+
+        const startedAt = Date.now();
+        progressTimer = setInterval(async () => {
+            try {
+                const elapsedSeconds = (Date.now() - startedAt) / 1000;
+                const estimatedProgress = 25 + Math.min(60, elapsedSeconds * 2);
+                await jobService.updateJobProgress(videoId, estimatedProgress);
+            } catch (progressError) {
+                console.warn(`[WARN] Failed to update progress for video ${videoId}:`, progressError.message);
+            }
+        }, 5000);
+
+        const mlResult = await mlService.analyzeVideo(video);
+
+        clearInterval(progressTimer);
+        progressTimer = null;
+
+        await jobService.updateJobProgress(videoId, 88);
+        await mlService.saveResult(videoId, mlResult);
+        await jobService.updateJobProgress(videoId, 95);
+        await jobService.completeJob(videoId);
+    } catch (error) {
+        if (progressTimer) {
+            clearInterval(progressTimer);
+        }
+
+        await jobService.failJob(videoId, error.message);
+        throw error;
+    }
+
     res.json({
         success: true,
         data: {
             videoId: video._id,
             jobId: job._id,
-            status: job.status,
-            message: 'Analysis queued. Poll status endpoint for updates.',
+            status: 'done',
+            message: 'Analysis completed. Retrieve results from the results endpoint.',
         },
     });
 });
