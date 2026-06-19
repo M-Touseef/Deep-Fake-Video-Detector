@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Backend for video-only deepfake detection system",
   "main": "server.js",
+  "engines": {
+    "node": ">=20 <24"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",

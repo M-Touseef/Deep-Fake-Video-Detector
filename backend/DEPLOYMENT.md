@@ -1,0 +1,54 @@
+# Backend Production Deployment
+
+The backend needs three runtime pieces:
+
+1. API web process: `npm start`
+2. Analysis worker process: `npm run worker`
+3. Redis queue shared by both processes
+
+It also needs MongoDB and the deployed ML service URL.
+
+## Required Environment Variables
+
+Use `backend/.env.production.example` as the template.
+
+Required secrets:
+
+- `MONGODB_URI`
+- `REDIS_URL`
+- `ML_SERVICE_URL`
+- `JWT_SECRET`
+- `ADMIN_PASSWORD`
+
+`ML_SERVICE_URL` must point to the prediction endpoint, for example:
+
+```env
+ML_SERVICE_URL=https://deepfake-ml-api.eastus.azurecontainerapps.io/predict
+```
+
+## Render Setup
+
+This repo includes `render.yaml` at the repository root. It defines:
+
+- `deepfake-backend-api`: Express API service
+- `deepfake-analysis-worker`: BullMQ worker service
+- `deepfake-redis`: managed Redis service
+
+Render will still ask for unsynced secrets:
+
+- `MONGODB_URI`
+- `ML_SERVICE_URL`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+
+After deployment, set the frontend environment variable to:
+
+```env
+VITE_API_BASE_URL=https://<backend-api-domain>/api
+```
+
+Then rebuild/redeploy the frontend.
+
+## Storage Note
+
+Uploaded videos and generated heatmaps are stored on local disk through `UPLOAD_DIR` and `HEATMAP_DIR`. On most cloud hosts, local disk is ephemeral. The current cleanup job removes old files, which is acceptable for short-lived analysis, but long-term storage should use S3, Azure Blob Storage, or another object store.
