@@ -1,0 +1,50 @@
+export const analysisResult = {
+  videoName: 'sample_video.mp4',
+  analysisDate: '14 June 2026',
+  finalPrediction: 'Fake',
+  fakeProbability: 87,
+  authenticityScore: 13,
+  framesAnalyzed: 16,
+  facesDetected: '16/16',
+  confidenceLevel: 'High',
+  reportStatus: 'Ready',
+  affectedRegions: ['Mouth', 'Eyes', 'Facial Boundary', 'Skin Texture', 'Jawline'],
+  conclusion:
+    'The system detected suspicious facial manipulation patterns across multiple frames. Heatmap analysis shows that the model focused on facial boundaries, mouth movement, and skin texture inconsistencies.',
+  interpretation:
+    'The uploaded video is classified as Fake because multiple analyzed frames showed suspicious facial inconsistencies. The model detected unusual patterns around the mouth, eyes, facial boundaries, and skin texture. These regions contributed strongly to the final prediction.',
+  suspiciousFrames: [
+    {
+      frameNumber: 'Frame 05',
+      fakeProbability: 91,
+      status: 'Fake',
+      affectedRegions: ['Mouth', 'Eyes', 'Face Boundary'],
+      originalImage: '/images/cases/fake-news-frame.png',
+      heatmapImage: '/images/cases/fake-news-heatmap.png',
+    },
+    {
+      frameNumber: 'Frame 09',
+      fakeProbability: 88,
+      status: 'Fake',
+      affectedRegions: ['Skin Texture', 'Cheeks'],
+      originalImage: '/images/cases/video-call-fraud-frame.png',
+      heatmapImage: '/images/cases/video-call-heatmap.png',
+    },
+    {
+      frameNumber: 'Frame 12',
+      fakeProbability: 84,
+      status: 'Suspicious',
+      affectedRegions: ['Jawline', 'Mouth'],
+      originalImage: '/images/cases/social-media-frame.png',
+      heatmapImage: '/images/cases/social-media-heatmap.png',
+    },
+    {
+      frameNumber: 'Frame 15',
+      fakeProbability: 79,
+      status: 'Suspicious',
+      affectedRegions: ['Eyes', 'Facial Boundary'],
+      originalImage: '/images/cases/interview-frame.png',
+      heatmapImage: '/images/cases/interview-heatmap.png',
+    },
+  ],
+}

@@ -1,0 +1,203 @@
+import { useEffect, useState } from 'react'
+import Header from '../components/layout/Header'
+import FooterSection from '../components/sections/FooterSection'
+import HeatmapRegionChips from '../components/results/HeatmapRegionChips'
+import { analysisResult as fallbackResult } from '../data/resultData'
+import { downloadPdfReport } from '../utils/reportDownload'
+
+function loadReportResult() {
+  try {
+    const stored = window.sessionStorage.getItem('analysisResult')
+    if (stored) return { ...fallbackResult, ...JSON.parse(stored) }
+  } catch {
+    // Keep the bundled sample report available when session data is invalid.
+  }
+  return fallbackResult
+}
+
+function MetricTile({ label, value, tone = 'cyan' }) {
+  const toneClass = tone === 'red' ? 'text-red-200' : tone === 'emerald' ? 'text-emerald-200' : 'text-cyan-100'
+
+  return (
+    <div className="rounded-2xl border border-white/[.08] bg-[#071116]/76 p-4">
+      <p className="text-[10px] font-black uppercase tracking-[.16em] text-slate-500">{label}</p>
+      <strong className={`mt-2 block text-2xl font-semibold tracking-[-.04em] ${toneClass}`}>{value}</strong>
+    </div>
+  )
+}
+
+function EvidenceStrip({ frames = [] }) {
+  const visibleFrames = frames.slice(0, 3)
+
+  return (
+    <div className="grid grid-cols-3 gap-3 max-md:grid-cols-1">
+      {visibleFrames.map((frame) => (
+        <article className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#071116]/78" key={frame.frameNumber}>
+          <div className="grid grid-cols-2">
+            <figure className="relative aspect-square overflow-hidden bg-black">
+              <img className="size-full object-cover" src={frame.originalImage} alt={`${frame.frameNumber} original`} />
+              <figcaption className="absolute bottom-2 left-2 rounded-full bg-black/65 px-2 py-1 text-[9px] font-bold uppercase tracking-[.1em] text-white/80">Original</figcaption>
+            </figure>
+            <figure className="relative aspect-square overflow-hidden bg-black">
+              <img className="size-full object-cover" src={frame.heatmapImage} alt={`${frame.frameNumber} heatmap`} />
+              <figcaption className="absolute bottom-2 left-2 rounded-full bg-black/65 px-2 py-1 text-[9px] font-bold uppercase tracking-[.1em] text-red-100">Grad-CAM</figcaption>
+            </figure>
+          </div>
+          <div className="p-3">
+            <div className="flex items-center justify-between gap-3">
+              <strong className="text-sm font-bold text-white">{frame.frameNumber}</strong>
+              <span className="rounded-full border border-red-300/25 bg-red-400/10 px-2 py-1 text-[10px] font-black text-red-100">{frame.fakeProbability}%</span>
+            </div>
+            <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-400">{frame.affectedRegions.join(', ')}</p>
+          </div>
+        </article>
+      ))}
+    </div>
+  )
+}
+
+export default function ReportPage() {
+  const [result, setResult] = useState(fallbackResult)
+
+  useEffect(() => {
+    setResult(loadReportResult())
+  }, [])
+
+  const isFake = String(result.finalPrediction).toLowerCase() === 'fake'
+  const authenticityScore = result.authenticityScore ?? Math.max(0, 100 - Number(result.fakeProbability || 0))
+
+  return (
+    <div className="min-h-screen bg-[#05090c] font-['Manrope'] text-[#f4fbff] antialiased">
+      <Header />
+      <main className="relative overflow-hidden pb-20 pt-[122px] max-md:pt-[104px]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_6%,rgba(34,211,238,.12),transparent_28%),radial-gradient(circle_at_82%_16%,rgba(248,113,113,.1),transparent_24%),linear-gradient(180deg,#05090c_0%,#071116_48%,#03080b_100%)]" aria-hidden="true" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(33,216,238,.05)_1px,transparent_1px),linear-gradient(90deg,rgba(33,216,238,.05)_1px,transparent_1px)] bg-[size:62px_62px] opacity-25 [mask-image:linear-gradient(180deg,#000,transparent_82%)]" aria-hidden="true" />
+
+        <section className="relative mx-auto w-[min(1240px,calc(100%-48px))] max-md:w-[min(680px,calc(100%-30px))]" aria-labelledby="report-title">
+          <div className="flex flex-wrap items-end justify-between gap-5">
+            <div>
+              <div className="mb-5 inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[.2em] text-cyan-200/85">
+                <span className="size-1.5 rounded-full bg-cyan-300 shadow-[0_0_10px_#21d8ee]" />
+                Evidence packet
+              </div>
+              <h1 className="text-[clamp(38px,5vw,64px)] font-semibold leading-[1.02] tracking-[-.045em]" id="report-title">PDF Analysis Report</h1>
+              <p className="mt-5 max-w-[820px] text-[clamp(15px,1.5vw,18px)] leading-7 text-[#a9bac1]">
+                A case-ready report preview with verdict context, frame evidence, heatmap focus areas, and reviewer guidance.
+              </p>
+            </div>
+            <button className="inline-flex min-h-12 items-center justify-center rounded-full bg-cyan-300 px-6 text-sm font-extrabold text-[#021014] shadow-[0_16px_38px_rgba(34,211,238,.22)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-cyan-200" type="button" onClick={() => downloadPdfReport(result)}>
+              Download PDF
+            </button>
+          </div>
+
+          <div className="mt-10 grid grid-cols-[minmax(0,.78fr)_minmax(0,1.22fr)] gap-6 max-xl:grid-cols-1">
+            <aside className="rounded-[30px] border border-white/10 bg-white/[.045] p-5 shadow-[0_28px_80px_rgba(0,0,0,.36),inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur-2xl">
+              <div className={`rounded-[26px] border p-6 ${isFake ? 'border-red-300/25 bg-red-400/10' : 'border-emerald-300/25 bg-emerald-300/10'}`}>
+                <p className="text-[11px] font-black uppercase tracking-[.18em] text-slate-300">Final verdict</p>
+                <strong className={`mt-4 block text-[clamp(42px,6vw,72px)] font-semibold leading-none tracking-[-.06em] ${isFake ? 'text-red-200' : 'text-emerald-200'}`}>
+                  {result.finalPrediction}
+                </strong>
+                <p className="mt-5 text-sm leading-6 text-slate-300">
+                  {isFake ? 'Treat this clip as unverified until a human reviewer validates the source and frame evidence.' : 'The clip appears authentic, but source and context checks are still recommended.'}
+                </p>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <MetricTile label="Fake score" value={`${result.fakeProbability}%`} tone="red" />
+                <MetricTile label="Authenticity" value={`${authenticityScore}%`} tone="emerald" />
+                <MetricTile label="Frames" value={result.framesAnalyzed} />
+                <MetricTile label="Faces" value={result.facesDetected} />
+              </div>
+
+              <div className="mt-4 rounded-[24px] border border-white/[.08] bg-[#071116]/76 p-5">
+                <p className="text-[11px] font-black uppercase tracking-[.16em] text-slate-500">Case metadata</p>
+                <dl className="mt-4 grid gap-3 text-sm">
+                  {[
+                    ['Video', result.videoName],
+                    ['Analysis date', result.analysisDate],
+                    ['Confidence', result.confidenceLevel],
+                    ['Report status', result.reportStatus],
+                  ].map(([label, value]) => (
+                    <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-3" key={label}>
+                      <dt className="text-slate-500">{label}</dt>
+                      <dd className="truncate font-semibold text-slate-100">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            </aside>
+
+            <div className="rounded-[30px] border border-white/10 bg-[#eef7fa] p-5 text-[#071116] shadow-[0_36px_100px_rgba(0,0,0,.45)]">
+              <article className="min-h-[760px] rounded-[22px] bg-white p-6 shadow-[inset_0_0_0_1px_rgba(2,16,20,.08)] max-sm:p-4">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-5">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black uppercase tracking-[.16em] text-cyan-800">
+                      <span className="size-1.5 rounded-full bg-cyan-500" />
+                      VerifAI forensic report
+                    </div>
+                    <h2 className="mt-4 text-3xl font-black tracking-[-.045em] text-slate-950">Deepfake Detection Summary</h2>
+                    <p className="mt-2 max-w-[620px] text-sm leading-6 text-slate-600">{result.videoName} | generated for reviewer handoff</p>
+                  </div>
+                  <div className={`rounded-2xl px-4 py-3 text-right ${isFake ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                    <p className="text-[10px] font-black uppercase tracking-[.16em]">Verdict</p>
+                    <strong className="mt-1 block text-2xl font-black">{result.finalPrediction}</strong>
+                  </div>
+                </header>
+
+                <div className="mt-6 grid grid-cols-[1fr_220px] gap-5 max-lg:grid-cols-1">
+                  <section>
+                    <h3 className="text-sm font-black uppercase tracking-[.14em] text-slate-500">Reviewer interpretation</h3>
+                    <p className="mt-3 rounded-2xl bg-slate-50 p-5 text-[15px] leading-7 text-slate-700">{result.interpretation}</p>
+                  </section>
+                  <section className="rounded-2xl bg-slate-950 p-5 text-white">
+                    <p className="text-[10px] font-black uppercase tracking-[.16em] text-cyan-200">Confidence gauge</p>
+                    <div className="mt-5 grid place-items-center">
+                      <div className="grid size-32 place-items-center rounded-full border-[10px] border-red-300 bg-slate-900 shadow-[0_0_0_10px_rgba(248,113,113,.12)]">
+                        <strong className="text-4xl font-black tracking-[-.06em]">{result.fakeProbability}%</strong>
+                      </div>
+                    </div>
+                    <p className="mt-4 text-center text-xs leading-5 text-slate-400">{result.confidenceLevel} confidence manipulation signal</p>
+                  </section>
+                </div>
+
+                <section className="mt-6">
+                  <div className="mb-3 flex items-center justify-between gap-4">
+                    <h3 className="text-sm font-black uppercase tracking-[.14em] text-slate-500">Top frame evidence</h3>
+                    <span className="text-xs font-bold text-slate-400">{result.suspiciousFrames?.length || 0} suspicious frames</span>
+                  </div>
+                  <EvidenceStrip frames={result.suspiciousFrames || []} />
+                </section>
+
+                <section className="mt-6 grid grid-cols-[1fr_.9fr] gap-5 max-lg:grid-cols-1">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <h3 className="text-sm font-black uppercase tracking-[.14em] text-slate-500">Conclusion</h3>
+                    <p className="mt-3 text-sm leading-7 text-slate-700">{result.conclusion}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <h3 className="text-sm font-black uppercase tracking-[.14em] text-slate-500">Reviewer checklist</h3>
+                    <ul className="mt-3 grid gap-2 text-sm font-semibold text-slate-700">
+                      <li>Check source credibility before publication.</li>
+                      <li>Compare suspicious frames with original context.</li>
+                      <li>Use heatmaps as model attention evidence.</li>
+                    </ul>
+                  </div>
+                </section>
+              </article>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <HeatmapRegionChips regions={result.affectedRegions || []} />
+          </div>
+
+          <div className="mt-6 flex flex-wrap justify-end gap-3 max-sm:grid">
+            <a className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/12 bg-white/[.045] px-5 text-sm font-bold text-slate-100 transition-all duration-300 hover:border-cyan-300/35 hover:bg-cyan-300/10" href="/results">Back to Results</a>
+            <a className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/12 bg-white/[.045] px-5 text-sm font-bold text-slate-100 transition-all duration-300 hover:border-cyan-300/35 hover:bg-cyan-300/10" href="/frames">View Frame Analysis</a>
+            <button className="inline-flex min-h-12 items-center justify-center rounded-full bg-cyan-300 px-5 text-sm font-extrabold text-[#021014] shadow-[0_16px_38px_rgba(34,211,238,.22)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-cyan-200" type="button" onClick={() => downloadPdfReport(result)}>Download PDF</button>
+          </div>
+        </section>
+      </main>
+      <FooterSection />
+    </div>
+  )
+}
