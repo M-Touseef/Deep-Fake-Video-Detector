@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ChevronRight, Clock, Cpu, FileVideo, Shield, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiService } from '../services/api';
-import { AlertPanel, AnalysisProgress, AppShell, DropzoneUpload, IconTile, PageHeader, PrimaryButton, SectionPanel, StatCard } from './shared/ProductUI';
+import { AlertPanel, AppShell, IconTile, PageHeader, PrimaryButton, SectionPanel, StatCard } from './shared/ProductUI';
+import { AnalysisProgressStepper, MediaUploadDropzone } from './premium/RealityComponents';
 
 const STEPS = [
   { pct: [0, 25], label: 'Uploading video...' },
@@ -87,7 +88,7 @@ export const UploadPage = () => {
   };
 
   return (
-    <AppShell maxWidth="max-w-3xl">
+    <AppShell maxWidth="max-w-3xl" background="scan">
       <PageHeader
         align="center"
         title="Analyse a Video"
@@ -110,16 +111,15 @@ export const UploadPage = () => {
             }}
             className="hidden"
           />
-          <DropzoneUpload
+          <MediaUploadDropzone
             selected={!!selectedFile}
             dragging={isDragging}
+            title={selectedFile ? selectedFile.name : isDragging ? 'Release to upload' : 'Drop your video here'}
             helper={selectedFile ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB - MP4` : 'MP4 only, max 50 MB'}
             onClick={() => fileInputRef.current?.click()}
             onDrop={handleDrop}
             onDragState={setIsDragging}
-          >
-            <p className="font-semibold text-white">{selectedFile ? selectedFile.name : isDragging ? 'Release to upload' : 'Drop your video here'}</p>
-          </DropzoneUpload>
+          />
 
           {selectedFile && (
             <SectionPanel className="mt-5 flex items-center justify-between">
@@ -159,7 +159,7 @@ export const UploadPage = () => {
           </div>
           <h2 className="mb-2 text-2xl font-bold text-white">Analysing Video</h2>
           <div className="mx-auto max-w-sm">
-            <AnalysisProgress label={currentStep.label} progress={progress} />
+            <AnalysisProgressStepper label={currentStep.label} progress={progress} />
           </div>
         </SectionPanel>
       )}

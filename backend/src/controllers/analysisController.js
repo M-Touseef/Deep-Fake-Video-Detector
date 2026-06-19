@@ -1,8 +1,7 @@
 const { asyncHandler } = require('../middleware/errorHandler');
 const jobService = require('../services/jobService');
 const videoService = require('../services/videoService');
-const mlService = require('../services/mlService');
-const env = require('../config/env');
+const { enqueueAnalysis } = require('../queues/analysisQueue');
 
 /**
  * Start analysis for a video
@@ -47,8 +46,7 @@ const startAnalysis = asyncHandler(async (req, res) => {
         });
     }
 
-    // Start job
-    job = await jobService.startJob(videoId);
+    await enqueueAnalysis(videoId);
 
     // Send immediate response
     res.json({
@@ -57,59 +55,10 @@ const startAnalysis = asyncHandler(async (req, res) => {
             videoId: video._id,
             jobId: job._id,
             status: job.status,
-            message: 'Analysis started. Poll status endpoint for updates.',
+            message: 'Analysis queued. Poll status endpoint for updates.',
         },
     });
-
-    // Process in background (async, no await)
-    processAnalysis(video);
 });
-
-/**
- * Background analysis processing
- */
-const processAnalysis = async (video) => {
-    let progressTimer = null;
-
-    try {
-        console.log(`[ML] Calling ML service for video: ${video._id}`);
-        await jobService.updateJobProgress(video._id, 20);
-
-        const startedAt = Date.now();
-        progressTimer = setInterval(async () => {
-            try {
-                const elapsedSeconds = (Date.now() - startedAt) / 1000;
-                const estimatedProgress = 25 + Math.min(60, elapsedSeconds * 2);
-                await jobService.updateJobProgress(video._id, estimatedProgress);
-            } catch (progressError) {
-                console.warn(`[WARN] Failed to update progress for video ${video._id}:`, progressError.message);
-            }
-        }, 5000);
-
-        const mlResult = await mlService.analyzeVideo(video);
-
-        if (progressTimer) {
-            clearInterval(progressTimer);
-            progressTimer = null;
-        }
-        await jobService.updateJobProgress(video._id, 88);
-
-        // Save result
-        await mlService.saveResult(video._id, mlResult);
-        await jobService.updateJobProgress(video._id, 95);
-
-        // Mark job complete
-        await jobService.completeJob(video._id);
-
-        console.log(`[SUCCESS] Analysis complete for video: ${video._id}`);
-    } catch (error) {
-        if (progressTimer) {
-            clearInterval(progressTimer);
-        }
-        console.error(`[ERROR] Analysis failed for video ${video._id}:`, error.message);
-        await jobService.failJob(video._id, error.message);
-    }
-};
 
 /**
  * Get analysis status

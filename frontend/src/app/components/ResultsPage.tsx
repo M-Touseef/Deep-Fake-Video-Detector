@@ -1,6 +1,8 @@
 import { useParams, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Navbar } from './Navbar';
+import { DynamicBackground } from './shared/ProductUI';
+import { HeatmapComparisonSlider, ResultDashboard, SuspiciousFrameGallery } from './premium/RealityComponents';
 import { apiService } from '../services/api';
 import { downloadForensicReportPdf } from '../services/reportPdf';
 import { toast } from 'sonner';
@@ -306,7 +308,9 @@ export const ResultsPage = () => {
         : 'Likely safe with source check';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white">
+    <div className="relative min-h-screen overflow-hidden bg-[#070B14] text-white">
+      <DynamicBackground variant="heatmap" />
+      <div className="relative z-10">
       <Navbar />
 
       <div className="max-w-6xl mx-auto px-4 py-10">
@@ -317,6 +321,19 @@ export const ResultsPage = () => {
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
           Back to History
         </Link>
+
+        <div className="mb-8">
+          <ResultDashboard
+            verdict={result.verdict}
+            confidence={result.confidence}
+            label={result.confidenceLabel}
+            warnings={qualityWarnings}
+            onDownload={() => {
+              downloadForensicReportPdf(result);
+              toast.success('Forensic report downloaded');
+            }}
+          />
+        </div>
 
         {/* ══════════════════════════════════════════════════════
             HERO VERDICT SECTION
@@ -684,8 +701,14 @@ export const ResultsPage = () => {
               Click a thumbnail to inspect it.
             </p>
 
+            <SuspiciousFrameGallery
+              frames={result.frameEvidence}
+              active={activeFrame}
+              onSelect={setActiveFrame}
+            />
+
             {/* Thumbnail strip */}
-            <div className="flex gap-3 mb-6 overflow-x-auto pb-2">
+            <div className="flex gap-3 my-6 overflow-x-auto pb-2">
               {result.frameEvidence.map((f, i) => (
                 <button
                   key={f.rank}
@@ -710,6 +733,13 @@ export const ResultsPage = () => {
             {/* Active frame detail */}
             {currentFrame && (
               <div className="bg-slate-900/60 rounded-xl p-5 border border-slate-700/40">
+                <div className="mb-6">
+                  <HeatmapComparisonSlider
+                    original={currentFrame.originalBase64}
+                    heatmap={currentFrame.heatmapBase64}
+                    alt={`Frame #${currentFrame.rank} comparison`}
+                  />
+                </div>
                 <div className="grid md:grid-cols-2 gap-5 mb-6">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -861,6 +891,7 @@ export const ResultsPage = () => {
           </div>
         </div>
 
+      </div>
       </div>
     </div>
   );

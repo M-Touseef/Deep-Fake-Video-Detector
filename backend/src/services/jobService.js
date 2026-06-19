@@ -162,6 +162,32 @@ const failJob = async (videoId, errorMessage) => {
     return updateJobStatus(job._id, { status: 'failed', errorMessage });
 };
 
+/**
+ * Move interrupted running jobs back to queued on worker startup.
+ * @returns {Promise<number>} Number of reset jobs
+ */
+const resetInterruptedJobs = async () => {
+    const result = await AnalysisJob.updateMany(
+        { status: 'running' },
+        {
+            status: 'queued',
+            progress: 0,
+            errorMessage: 'Analysis was interrupted before completion and has been queued again.',
+            startedAt: null,
+            completedAt: null,
+        }
+    );
+
+    if (result.modifiedCount > 0) {
+        await Video.updateMany(
+            { status: 'processing' },
+            { status: 'uploaded' }
+        );
+    }
+
+    return result.modifiedCount || 0;
+};
+
 module.exports = {
     createJob,
     getJobByVideoId,
@@ -171,4 +197,5 @@ module.exports = {
     startJob,
     completeJob,
     failJob,
+    resetInterruptedJobs,
 };

@@ -1,16 +1,101 @@
 import { Navbar } from '../Navbar';
-import { FileVideo, Upload } from 'lucide-react';
+import { CheckCircle, FileVideo, Upload, XCircle } from 'lucide-react';
 
-export const AppShell = ({ children, maxWidth = 'max-w-6xl' }: { children: React.ReactNode; maxWidth?: string }) => (
-  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white">
-    <div className="fixed inset-0 pointer-events-none -z-10">
-      <div className="absolute w-[560px] h-[560px] bg-blue-700/10 rounded-full blur-3xl -top-44 left-1/4" />
-      <div className="absolute w-[380px] h-[380px] bg-cyan-500/8 rounded-full blur-3xl bottom-0 right-0" />
+type BackgroundVariant = 'verification' | 'scan' | 'hash' | 'heatmap' | 'identity';
+
+const FloatingMediaCard = ({
+  className,
+  status,
+  suspicious,
+}: {
+  className: string;
+  status: string;
+  suspicious?: boolean;
+}) => (
+  <div className={`absolute hidden rounded-xl border bg-white/[0.045] backdrop-blur-md shadow-2xl shadow-black/20 md:block ${className}`}>
+    <div className="p-3 text-xs text-slate-300">
+      <div className="flex items-center justify-between">
+        <span>{suspicious ? 'Deepfake Check' : 'Media Scan'}</span>
+        {suspicious ? <XCircle className="h-3.5 w-3.5 text-red-300" /> : <CheckCircle className="h-3.5 w-3.5 text-green-300" />}
+      </div>
+      <div className={`mt-3 h-2 rounded ${suspicious ? 'w-28 bg-red-400/40' : 'w-24 bg-blue-400/40'}`} />
+      <div className="mt-2 h-2 w-32 rounded bg-slate-500/30" />
+      <span className={`mt-4 inline-flex rounded-full px-2 py-1 ${suspicious ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'}`}>
+        {status}
+      </span>
     </div>
+  </div>
+);
+
+export const DynamicBackground = ({ variant = 'verification' }: { variant?: BackgroundVariant }) => (
+  <div className="absolute inset-0 overflow-hidden bg-[#070B14]">
+    <div className={`absolute inset-0 ${variant === 'scan' ? 'scan-field' : variant === 'hash' || variant === 'identity' ? 'hash-pattern' : 'verification-grid'}`} />
+
+    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.16),transparent_46%),linear-gradient(180deg,rgba(7,11,20,0)_0%,rgba(7,11,20,0.74)_84%)]" />
+
+    {variant === 'verification' && (
+      <>
+        <FloatingMediaCard
+          className="left-10 top-24 h-28 w-44 border-blue-400/20 animate-verification-float"
+          status="Verified"
+        />
+        <FloatingMediaCard
+          className="right-12 bottom-24 h-28 w-44 border-red-400/20 animate-verification-float-delayed"
+          status="Suspicious"
+          suspicious
+        />
+        <div className="absolute left-[18%] top-[58%] hidden h-px w-64 rotate-12 bg-gradient-to-r from-transparent via-blue-400/30 to-transparent md:block" />
+        <div className="absolute right-[22%] top-[28%] hidden h-px w-52 -rotate-12 bg-gradient-to-r from-transparent via-green-400/30 to-transparent md:block" />
+      </>
+    )}
+
+    {variant === 'scan' && (
+      <>
+        <div className="scan-line absolute left-0 right-0 top-0 h-24 bg-gradient-to-b from-transparent via-green-400/18 to-transparent" />
+        <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full border border-blue-400/15 animate-ring-pulse" />
+        <div className="absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full border border-green-400/15 animate-ring-pulse" />
+      </>
+    )}
+
+    {variant === 'heatmap' && (
+      <>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_35%,rgba(239,68,68,0.18),transparent_24%),radial-gradient(circle_at_68%_42%,rgba(59,130,246,0.16),transparent_26%),radial-gradient(circle_at_52%_70%,rgba(34,197,94,0.12),transparent_22%)]" />
+        <div className="absolute left-1/2 top-32 h-40 w-40 -translate-x-1/2 rounded-full border border-blue-300/10 animate-ring-pulse" />
+      </>
+    )}
+
+    {variant === 'hash' && (
+      <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(59,130,246,0.12),transparent_32%,rgba(34,197,94,0.08)_64%,transparent)]" />
+    )}
+
+    {variant === 'identity' && (
+      <>
+        <div className="absolute left-[18%] top-[18%] h-80 w-80 rounded-full border border-blue-400/10" />
+        <div className="absolute left-[18%] top-[18%] h-56 w-56 rounded-full border border-green-400/10 animate-ring-pulse" />
+        <div className="absolute right-[12%] bottom-[16%] h-48 w-48 rounded-full border border-blue-300/10 animate-ring-pulse" />
+        <div className="scan-line absolute left-0 right-0 top-0 h-20 bg-gradient-to-b from-transparent via-blue-400/10 to-transparent" />
+      </>
+    )}
+  </div>
+);
+
+export const AppShell = ({
+  children,
+  maxWidth = 'max-w-6xl',
+  background = 'hash',
+}: {
+  children: React.ReactNode;
+  maxWidth?: string;
+  background?: BackgroundVariant;
+}) => (
+  <div className="relative min-h-screen overflow-hidden bg-[#070B14] text-white">
+    <DynamicBackground variant={background} />
+    <div className="relative z-10">
     <Navbar />
     <main className={`${maxWidth} mx-auto px-4 py-10`}>
       {children}
     </main>
+    </div>
   </div>
 );
 

@@ -16,7 +16,8 @@ import {
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import { toast } from 'sonner';
-import { AlertPanel, AnalysisProgress, AppShell, DropzoneUpload, PageHeader, PrimaryButton, SectionPanel } from './shared/ProductUI';
+import { AlertPanel, AppShell, PageHeader, PrimaryButton, SectionPanel } from './shared/ProductUI';
+import { AnalysisProgressStepper, MediaUploadDropzone } from './premium/RealityComponents';
 
 type FlowStage =
   | 'idle'
@@ -299,7 +300,7 @@ export const VerifyNewsPage = () => {
     : '';
 
   return (
-    <AppShell maxWidth="max-w-5xl">
+    <AppShell maxWidth="max-w-5xl" background="scan">
         <PageHeader
           eyebrow={
             <span className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs text-blue-200">
@@ -354,8 +355,9 @@ export const VerifyNewsPage = () => {
               </div>
             </SectionPanel>
 
-            <DropzoneUpload
+            <MediaUploadDropzone
               selected={!!selectedFile}
+              title={selectedFile ? selectedFile.name : 'Upload the MP4 clip'}
               helper={selectedFile ? selectedFileInfo : 'MP4 only, 5 seconds to 2 minutes, max 50 MB'}
               error={errors.video}
               dragging={isDragging}
@@ -363,7 +365,7 @@ export const VerifyNewsPage = () => {
               onClick={() => !isBusy && fileInputRef.current?.click()}
               onDrop={handleDrop}
               onDragState={setIsDragging}
-            >
+            />
               <input
                 ref={fileInputRef}
                 type="file"
@@ -375,11 +377,6 @@ export const VerifyNewsPage = () => {
                   if (file) validateAndSetFile(file);
                 }}
               />
-
-              <p className="font-semibold text-white">
-                {selectedFile ? selectedFile.name : 'Upload the MP4 clip'}
-              </p>
-            </DropzoneUpload>
 
             {selectedFile && !isBusy && (
               <button
@@ -407,7 +404,7 @@ export const VerifyNewsPage = () => {
             </SectionPanel>
 
             <div>
-              <AnalysisProgress label={stageLabels[stage]} progress={progress} />
+              <AnalysisProgressStepper label={stageLabels[stage]} progress={progress} />
               {failureMessage && (
                 <AlertPanel tone="red" className="mt-4">
                   {failureMessage}

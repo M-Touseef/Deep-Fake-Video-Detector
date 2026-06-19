@@ -24,6 +24,10 @@ const env = {
     ML_SERVICE_URL: process.env.ML_SERVICE_URL || 'http://localhost:5000/predict',
     ML_SERVICE_TIMEOUT: parseInt(process.env.ML_SERVICE_TIMEOUT) || 300000, // 5 minutes
 
+    // Redis/BullMQ background analysis queue
+    REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
+    ANALYSIS_WORKER_CONCURRENCY: parseInt(process.env.ANALYSIS_WORKER_CONCURRENCY) || 1,
+
     // File Upload
     MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE) || 52428800, // 50 MB (aligned with ML service)
     UPLOAD_DIR: process.env.UPLOAD_DIR || path.join(__dirname, '../../uploads'),

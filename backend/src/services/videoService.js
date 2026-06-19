@@ -182,6 +182,7 @@ const getVideos = async (options = {}) => {
 const cleanupExpiredVideos = async (olderThanDate) => {
     const expiredVideos = await Video.find({
         uploadedAt: { $lt: olderThanDate },
+        status: { $ne: 'processing' },
     }).select('_id');
 
     let deleted = 0;
