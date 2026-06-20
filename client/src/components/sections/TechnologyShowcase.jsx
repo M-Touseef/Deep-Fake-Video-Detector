@@ -96,7 +96,6 @@ export default function TechnologyShowcase() {
       aria-labelledby="technology-title"
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(33,216,238,.13),transparent_36%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(33,216,238,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(33,216,238,.025)_1px,transparent_1px)] bg-[size:72px_72px] [mask-image:linear-gradient(180deg,transparent,#000_18%,#000_82%,transparent)]" />
 
       <div className="relative mx-auto max-w-7xl">
         <motion.div className="mb-16 text-center" initial="hidden" animate={controls} variants={variants}>
