@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { detectionSteps, entranceDelays } from '../../data/homeContent'
 import { useSectionReveal } from '../../hooks/useSectionReveal'
+import ModelArchitectureScene from './ModelArchitectureScene'
 
 export default function DetectionFlow() {
   const [activeStep, setActiveStep] = useState(0)
@@ -17,7 +18,6 @@ export default function DetectionFlow() {
   return (
     <section className="relative overflow-hidden border-t border-cyan-300/10 bg-[#071015] py-24 max-md:py-[78px]" id="detection-flow" ref={sectionRef} aria-labelledby="detection-flow-title">
       <div className="pointer-events-none absolute left-1/2 top-[-250px] h-[440px] w-[700px] -translate-x-1/2 bg-[radial-gradient(circle,rgba(33,216,238,.1),transparent_68%)]" aria-hidden="true" />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(33,216,238,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(33,216,238,.045)_1px,transparent_1px)] bg-[size:52px_52px] opacity-20 [mask-image:linear-gradient(180deg,#000,transparent_78%)]" aria-hidden="true" />
 
       <div className="relative z-10 mx-auto w-[min(1320px,calc(100%-48px))] max-md:w-[min(620px,calc(100%-30px))]">
         <header className="mx-auto mb-16 max-w-[780px] text-center max-md:mb-14">
@@ -32,6 +32,14 @@ export default function DetectionFlow() {
             The system analyzes uploaded videos frame by frame, detects facial regions, applies AI-based classification, and generates visual heatmap explanations with a downloadable PDF report.
           </p>
         </header>
+
+        <div className={`relative mb-16 transition-all delay-300 duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
+          <ModelArchitectureScene activeStep={Math.min(activeStep, 5)} isVisible={isVisible} />
+          <div className="pointer-events-none absolute left-0 top-10 hidden max-w-[270px] rounded-r-3xl border-y border-r border-cyan-300/15 bg-[#071015]/72 px-5 py-4 backdrop-blur-xl lg:block">
+            <p className="text-[10px] font-black uppercase tracking-[.16em] text-cyan-200/70">Architecture flow</p>
+            <p className="mt-2 text-sm leading-6 text-slate-300">Particles represent frame features moving through face crops, CNN spatial features, transformer attention, classifier weights, and Grad-CAM evidence.</p>
+          </div>
+        </div>
 
         <div className="relative grid grid-cols-6 gap-8 before:absolute before:left-[8.333%] before:right-[8.333%] before:top-9 before:h-px before:bg-[linear-gradient(90deg,transparent,rgba(96,192,207,.35)_8%,rgba(96,192,207,.35)_92%,transparent)] before:content-[''] max-md:mx-auto max-md:flex max-md:max-w-[560px] max-md:flex-col max-md:gap-0 max-md:before:bottom-10 max-md:before:left-8 max-md:before:right-auto max-md:before:top-8 max-md:before:h-auto max-md:before:w-px max-md:before:bg-[linear-gradient(180deg,transparent,rgba(96,192,207,.35)_5%,rgba(96,192,207,.35)_95%,transparent)]">
           {detectionSteps.map((step, index) => {
