@@ -36,6 +36,12 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     res.json({
         success: true,
         data: {
+            totalUsers: activeUsers,
+            totalVideos,
+            analysesToday: analyzedVideos,
+            fakeDetections: totalFakeVideos,
+            reportsGenerated: analyzedVideos,
+            storageUsed: '0 GB',
             overview: {
                 activeUsers,
                 totalVideos,
@@ -83,7 +89,8 @@ const getAllVideos = asyncHandler(async (req, res) => {
     const videos = await Video.find(query)
         .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
         .skip((parseInt(page) - 1) * parseInt(limit))
-        .limit(parseInt(limit));
+        .limit(parseInt(limit))
+        .populate('userId', 'name');
 
     // Get results for verdict filter
     const videoIds = videos.map(v => v._id);
@@ -95,15 +102,19 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
     // Combine data
     let combinedVideos = videos.map(video => ({
+        id: video._id,
         _id: video._id,
         filename: video.filename,
         originalName: video.originalName,
+        owner: video.userId?.name || 'Unknown',
         fileSize: video.fileSize,
         duration: video.duration,
         fps: video.fps,
         frameCount: video.frameCount,
         status: video.status,
         uploadedAt: video.uploadedAt,
+        verdict: resultsMap[video._id.toString()] ? resultsMap[video._id.toString()].verdict : '-',
+        confidence: resultsMap[video._id.toString()] ? resultsMap[video._id.toString()].confidence : null,
         result: resultsMap[video._id.toString()] ? {
             verdict: resultsMap[video._id.toString()].verdict,
             confidence: resultsMap[video._id.toString()].confidence,
@@ -197,9 +208,22 @@ const getUsers = asyncHandler(async (req, res) => {
         .sort({ createdAt: -1 })
         .select('name email role createdAt');
 
+    const usersWithStats = await Promise.all(users.map(async (user) => {
+        const videosCount = await Video.countDocuments({ userId: user._id });
+        return {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            videos: videosCount,
+            joinedAt: user.createdAt.toISOString().split('T')[0], // YYYY-MM-DD
+            ...user.toSafeJSON()
+        };
+    }));
+
     res.json({
         success: true,
-        data: users.map(user => user.toSafeJSON()),
+        data: usersWithStats,
     });
 });
 

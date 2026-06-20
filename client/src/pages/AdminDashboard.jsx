@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import Header from '../components/layout/Header'
-import FooterSection from '../components/sections/FooterSection'
 import apiService from '../services/apiService'
 import { useAuth } from '../components/auth/AuthContext'
 import { isAdminUser } from '../utils/auth'
@@ -111,8 +109,7 @@ export default function AdminDashboard() {
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-[#05090c] font-['Manrope'] text-[#f4fbff] antialiased">
-        <Header />
-        <main className="relative grid min-h-screen place-items-center overflow-hidden px-6 pt-28">
+        <main className="relative grid min-h-screen place-items-center overflow-hidden px-6 pt-12">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(248,113,113,.12),transparent_30%),linear-gradient(180deg,#05090c,#071116_52%,#03080b)]" aria-hidden="true" />
           <section className="relative w-[min(680px,100%)] rounded-[30px] border border-red-300/20 bg-red-400/[.07] p-7 text-center shadow-[0_32px_90px_rgba(0,0,0,.42)]">
             <h1 className="text-[clamp(32px,5vw,52px)] font-semibold tracking-[-.045em]">Admin Access Required</h1>
@@ -128,8 +125,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-[#05090c] font-['Manrope'] text-[#f4fbff] antialiased">
-      <Header />
-      <main className="relative overflow-hidden pt-[122px] max-md:pt-[104px]">
+      <main className="relative min-h-screen overflow-hidden pt-12 max-md:pt-8">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_7%,rgba(34,211,238,.13),transparent_28%),radial-gradient(circle_at_86%_20%,rgba(248,113,113,.08),transparent_24%),linear-gradient(180deg,#05090c_0%,#071116_48%,#03080b_100%)]" aria-hidden="true" />
         <section className="relative mx-auto w-[min(1240px,calc(100%-48px))] pb-20 max-md:w-[min(680px,calc(100%-30px))]" aria-labelledby="admin-title">
           <div className="flex flex-wrap items-end justify-between gap-5">
@@ -221,7 +217,6 @@ export default function AdminDashboard() {
           </div>
         </section>
       </main>
-      <FooterSection />
     </div>
   )
 }
