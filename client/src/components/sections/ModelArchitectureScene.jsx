@@ -269,11 +269,11 @@ export default function ModelArchitectureScene({ activeStep = 0, isVisible = tru
       root.userData.pointerY = y
     }
 
-    const clock = new THREE.Clock()
+    const startedAt = performance.now()
     let frameId = 0
 
     const animate = () => {
-      const elapsed = clock.getElapsedTime()
+      const elapsed = (performance.now() - startedAt) / 1000
       const activeLayer = Math.min(Math.max(activeStepRef.current, 0), layers.length - 1)
       root.rotation.y = Math.sin(elapsed * 0.25) * 0.08 + (root.userData.pointerX || 0) * 0.08
       root.rotation.x = -0.05 + (root.userData.pointerY || 0) * -0.05
