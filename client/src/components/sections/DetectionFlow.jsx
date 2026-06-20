@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { detectionSteps, entranceDelays } from '../../data/homeContent'
 import { useSectionReveal } from '../../hooks/useSectionReveal'
-import ModelArchitectureScene from './ModelArchitectureScene'
 
 export default function DetectionFlow() {
   const [activeStep, setActiveStep] = useState(0)
@@ -34,10 +33,19 @@ export default function DetectionFlow() {
         </header>
 
         <div className={`relative mb-16 transition-all delay-300 duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-          <ModelArchitectureScene activeStep={Math.min(activeStep, 5)} isVisible={isVisible} />
-          <div className="pointer-events-none absolute left-0 top-10 hidden max-w-[270px] rounded-r-3xl border-y border-r border-cyan-300/15 bg-[#071015]/72 px-5 py-4 backdrop-blur-xl lg:block">
-            <p className="text-[10px] font-black uppercase tracking-[.16em] text-cyan-200/70">Architecture flow</p>
-            <p className="mt-2 text-sm leading-6 text-slate-300">Particles represent frame features moving through face crops, CNN spatial features, transformer attention, classifier weights, and Grad-CAM evidence.</p>
+          <div className="relative mx-auto aspect-video max-w-4xl overflow-hidden rounded-[24px] border border-cyan-300/20 bg-[#04080a] shadow-[0_0_40px_rgba(33,216,238,.08)]">
+            <video 
+              src="/fianlvideo.mp4" 
+              autoPlay 
+              loop 
+              muted 
+              playsInline 
+              className="size-full object-cover" 
+            />
+          </div>
+          <div className="pointer-events-none absolute left-0 top-10 hidden max-w-[270px] rounded-r-3xl border-y border-r border-cyan-300/15 bg-[#071015]/72 px-5 py-4 backdrop-blur-xl lg:block z-20">
+            <p className="text-[10px] font-black uppercase tracking-[.16em] text-cyan-200/70">Visual Analysis</p>
+            <p className="mt-2 text-sm leading-6 text-slate-300">The methodology shown highlights the step-by-step extraction of features, facial tracking, and final model classification.</p>
           </div>
         </div>
 

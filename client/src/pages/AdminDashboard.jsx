@@ -48,7 +48,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const isAdmin = isAdminUser(user)
 
   useEffect(() => {
@@ -139,9 +139,18 @@ export default function AdminDashboard() {
                 Monitor users, uploaded videos, analysis activity, generated reports, and moderation actions across Deep Fake Detector.
               </p>
             </div>
-            <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase tracking-[.14em] text-emerald-100">
-              {isLoading ? 'Syncing...' : 'Admin Online'}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase tracking-[.14em] text-emerald-100">
+                {isLoading ? 'Syncing...' : 'Admin Online'}
+              </span>
+              <button 
+                onClick={logout}
+                className="rounded-full border border-red-300/25 bg-red-400/10 px-4 py-2 text-xs font-black uppercase tracking-[.14em] text-red-100 transition-colors hover:bg-red-400/20"
+                type="button"
+              >
+                Logout
+              </button>
+            </div>
           </div>
 
           {error && (
