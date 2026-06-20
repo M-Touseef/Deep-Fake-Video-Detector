@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import Header from '../components/layout/Header'
 import FooterSection from '../components/sections/FooterSection'
-import { adminMockStats, adminMockUsers, adminMockVideos } from '../data/adminMockData'
 import apiService from '../services/apiService'
 import { useAuth } from '../components/auth/AuthContext'
 import { isAdminUser } from '../utils/auth'
@@ -15,6 +14,15 @@ const statLabels = [
   ['reportsGenerated', 'PDF Reports'],
   ['storageUsed', 'Storage Used'],
 ]
+
+const emptyStats = {
+  totalUsers: 0,
+  totalVideos: 0,
+  analysesToday: 0,
+  fakeDetections: 0,
+  reportsGenerated: 0,
+  storageUsed: '0 GB',
+}
 
 function AdminStatCard({ label, value }) {
   return (
@@ -37,9 +45,9 @@ function StatusBadge({ value }) {
 }
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState(adminMockStats)
-  const [videos, setVideos] = useState(adminMockVideos)
-  const [users, setUsers] = useState(adminMockUsers)
+  const [stats, setStats] = useState(emptyStats)
+  const [videos, setVideos] = useState([])
+  const [users, setUsers] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const { user } = useAuth()
@@ -62,15 +70,15 @@ export default function AdminDashboard() {
         ])
 
         if (!isActive) return
-        setStats(statsData || adminMockStats)
-        setVideos(Array.isArray(videosData) ? videosData : videosData?.videos || adminMockVideos)
-        setUsers(Array.isArray(usersData) ? usersData : usersData?.users || adminMockUsers)
+        setStats({ ...emptyStats, ...(statsData || {}) })
+        setVideos(Array.isArray(videosData) ? videosData : videosData?.videos || [])
+        setUsers(Array.isArray(usersData) ? usersData : usersData?.users || [])
         setError('')
       } catch (error) {
         if (!isActive) return
-        setStats(adminMockStats)
-        setVideos(adminMockVideos)
-        setUsers(adminMockUsers)
+        setStats(emptyStats)
+        setVideos([])
+        setUsers([])
         setError(getFriendlyError(error, 'Failed to load admin data'))
       } finally {
         if (isActive) setIsLoading(false)
@@ -132,7 +140,7 @@ export default function AdminDashboard() {
               </div>
               <h1 className="text-[clamp(38px,5vw,64px)] font-semibold leading-[1.02] tracking-[-.045em]" id="admin-title">Admin Dashboard</h1>
               <p className="mt-5 max-w-[760px] text-[clamp(15px,1.5vw,18px)] leading-7 text-[#a9bac1]">
-                Monitor users, uploaded videos, analysis activity, generated reports, and moderation actions across VerifAI.
+                Monitor users, uploaded videos, analysis activity, generated reports, and moderation actions across Deep Fake Detector.
               </p>
             </div>
             <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase tracking-[.14em] text-emerald-100">
@@ -159,6 +167,12 @@ export default function AdminDashboard() {
                 <span className="text-xs font-bold uppercase tracking-[.14em] text-slate-500">GET /api/admin/videos?limit=100</span>
               </div>
               <div className="mt-5 overflow-hidden rounded-2xl border border-white/[.08]">
+                {!isLoading && videos.length === 0 && (
+                  <div className="px-5 py-10 text-center">
+                    <p className="text-base font-bold text-white">No uploaded videos yet</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">User uploads and completed analyses will appear here when real records exist.</p>
+                  </div>
+                )}
                 {videos.map((video) => (
                   <div className="grid grid-cols-[minmax(0,1.2fr)_120px_120px_90px] items-center gap-4 border-b border-white/[.06] p-4 last:border-b-0 max-lg:grid-cols-1" key={video.id}>
                     <div className="min-w-0">
@@ -179,6 +193,12 @@ export default function AdminDashboard() {
                 <span className="text-xs font-bold uppercase tracking-[.14em] text-slate-500">GET /api/admin/users</span>
               </div>
               <div className="mt-5 grid gap-3">
+                {!isLoading && users.length === 0 && (
+                  <div className="rounded-2xl border border-white/[.08] bg-[#071116]/72 px-5 py-10 text-center">
+                    <p className="text-base font-bold text-white">No users found</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">Registered user accounts will appear here once the API returns records.</p>
+                  </div>
+                )}
                 {users.map((item) => (
                   <div className="rounded-2xl border border-white/[.08] bg-[#071116]/72 p-4" key={item.id}>
                     <div className="flex flex-wrap items-start justify-between gap-3">

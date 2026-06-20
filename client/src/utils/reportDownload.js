@@ -198,7 +198,7 @@ export function downloadPdfReport(result) {
   const pdf = new PdfBuilder()
 
   const page1 = []
-  pageShell(page1, 'VerifAI Forensic Evidence Report', 'Deepfake detection, frame evidence, and Grad-CAM explainability', 1)
+  pageShell(page1, 'Deep Fake Detector Evidence Report', 'Deepfake detection, frame evidence, and Grad-CAM explainability', 1)
 
   let y = 666
   rect(page1, MARGIN, y - 92, PAGE_WIDTH - MARGIN * 2, 96, report.finalPrediction === 'Fake' ? '0.18 0.07 0.08' : '0.05 0.16 0.11', '0.32 0.18 0.20')

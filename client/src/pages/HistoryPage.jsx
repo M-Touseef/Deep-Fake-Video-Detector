@@ -5,15 +5,9 @@ import { useAuth } from '../components/auth/AuthContext'
 import apiService from '../services/apiService'
 import { getFriendlyError } from '../utils/errors'
 
-const historyItems = [
-  { video: 'sample_video.mp4', date: '14 June 2026', result: 'Fake', confidence: '87%', report: 'Ready' },
-  { video: 'interview_clip.mov', date: '12 June 2026', result: 'Suspicious', confidence: '74%', report: 'Ready' },
-  { video: 'authentic_source.mp4', date: '10 June 2026', result: 'Real', confidence: '91%', report: 'Ready' },
-]
-
 export default function HistoryPage() {
   const { user } = useAuth()
-  const [items, setItems] = useState(historyItems)
+  const [items, setItems] = useState([])
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
 
@@ -35,7 +29,7 @@ export default function HistoryPage() {
       })
       .catch((fetchError) => {
         if (!isActive) return
-        setItems(historyItems)
+        setItems([])
         setError(getFriendlyError(fetchError, 'Failed to load history'))
       })
       .finally(() => {
@@ -87,7 +81,8 @@ export default function HistoryPage() {
             {!isLoading && items.length === 0 && (
               <div className="px-5 py-12 text-center">
                 <p className="text-xl font-bold text-white">No history yet</p>
-                <p className="mt-2 text-sm text-slate-500">Upload a video to start saving analysis records.</p>
+                <p className="mx-auto mt-2 max-w-[420px] text-sm leading-6 text-slate-500">You have not analyzed any videos yet. Once you upload and complete an analysis, your saved results will appear here.</p>
+                <a className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-cyan-300 px-5 text-sm font-extrabold text-[#021014]" href="/upload">Analyze First Video</a>
               </div>
             )}
             {!isLoading && items.map((item) => (

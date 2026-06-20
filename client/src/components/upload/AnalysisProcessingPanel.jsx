@@ -281,7 +281,7 @@ export default function AnalysisProcessingPanel({ video, progress, currentStep, 
 
         <div className="rounded-[24px] border border-cyan-300/15 bg-[#071116]/75 p-4">
           <p className="text-[11px] font-bold uppercase tracking-[.16em] text-cyan-200/75">Uploaded Video</p>
-          <h3 className="mt-3 truncate text-lg font-bold text-white">{video?.name || 'sample_video.mp4'}</h3>
+          <h3 className="mt-3 truncate text-lg font-bold text-white">{video?.name || 'Selected video'}</h3>
           <div className="mt-4 grid gap-2 text-sm text-[#9fb3bb]">
             <span>Format: <strong className="font-semibold text-slate-100">{fileFormat}</strong></span>
             <span>Size: <strong className="font-semibold text-slate-100">{fileSize}</strong></span>

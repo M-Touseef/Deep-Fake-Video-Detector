@@ -2,17 +2,16 @@ import { useEffect, useState } from 'react'
 import Header from '../components/layout/Header'
 import FooterSection from '../components/sections/FooterSection'
 import HeatmapRegionChips from '../components/results/HeatmapRegionChips'
-import { analysisResult as fallbackResult } from '../data/resultData'
 import { downloadPdfReport } from '../utils/reportDownload'
 
 function loadReportResult() {
   try {
     const stored = window.sessionStorage.getItem('analysisResult')
-    if (stored) return { ...fallbackResult, ...JSON.parse(stored) }
+    if (stored) return JSON.parse(stored)
   } catch {
-    // Keep the bundled sample report available when session data is invalid.
+    return null
   }
-  return fallbackResult
+  return null
 }
 
 function MetricTile({ label, value, tone = 'cyan' }) {
@@ -31,15 +30,20 @@ function EvidenceStrip({ frames = [] }) {
 
   return (
     <div className="grid grid-cols-3 gap-3 max-md:grid-cols-1">
+      {visibleFrames.length === 0 && (
+        <div className="col-span-full rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500">
+          No frame evidence was returned for this report.
+        </div>
+      )}
       {visibleFrames.map((frame) => (
         <article className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#071116]/78" key={frame.frameNumber}>
           <div className="grid grid-cols-2">
             <figure className="relative aspect-square overflow-hidden bg-black">
-              <img className="size-full object-cover" src={frame.originalImage} alt={`${frame.frameNumber} original`} />
+              {frame.originalImage ? <img className="size-full object-cover" src={frame.originalImage} alt={`${frame.frameNumber} original`} /> : <div className="grid size-full place-items-center text-xs font-bold text-slate-500">No image</div>}
               <figcaption className="absolute bottom-2 left-2 rounded-full bg-black/65 px-2 py-1 text-[9px] font-bold uppercase tracking-[.1em] text-white/80">Original</figcaption>
             </figure>
             <figure className="relative aspect-square overflow-hidden bg-black">
-              <img className="size-full object-cover" src={frame.heatmapImage} alt={`${frame.frameNumber} heatmap`} />
+              {frame.heatmapImage ? <img className="size-full object-cover" src={frame.heatmapImage} alt={`${frame.frameNumber} heatmap`} /> : <div className="grid size-full place-items-center text-xs font-bold text-slate-500">No heatmap</div>}
               <figcaption className="absolute bottom-2 left-2 rounded-full bg-black/65 px-2 py-1 text-[9px] font-bold uppercase tracking-[.1em] text-red-100">Grad-CAM</figcaption>
             </figure>
           </div>
@@ -57,11 +61,27 @@ function EvidenceStrip({ frames = [] }) {
 }
 
 export default function ReportPage() {
-  const [result, setResult] = useState(fallbackResult)
+  const [result, setResult] = useState(null)
 
   useEffect(() => {
     setResult(loadReportResult())
   }, [])
+
+  if (!result) {
+    return (
+      <div className="min-h-screen bg-[#05090c] font-['Manrope'] text-[#f4fbff] antialiased">
+        <Header />
+        <main className="relative grid min-h-screen place-items-center overflow-hidden px-6 pt-28">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(34,211,238,.12),transparent_30%),linear-gradient(180deg,#05090c,#071116_52%,#03080b)]" aria-hidden="true" />
+          <section className="relative w-[min(680px,100%)] rounded-[30px] border border-cyan-300/20 bg-cyan-300/[.07] p-7 text-center shadow-[0_32px_90px_rgba(0,0,0,.42)]">
+            <h1 className="text-[clamp(32px,5vw,52px)] font-semibold tracking-[-.045em]">No Report Available</h1>
+            <p className="mx-auto mt-4 max-w-[520px] text-base leading-7 text-[#a9bac1]">Generate a real analysis first, then return here to preview and download the PDF report.</p>
+            <a className="mt-7 inline-flex min-h-12 items-center justify-center rounded-full bg-cyan-300 px-6 text-sm font-extrabold text-[#021014]" href="/upload">Analyze Video</a>
+          </section>
+        </main>
+      </div>
+    )
+  }
 
   const isFake = String(result.finalPrediction).toLowerCase() === 'fake'
   const authenticityScore = result.authenticityScore ?? Math.max(0, 100 - Number(result.fakeProbability || 0))
@@ -71,7 +91,6 @@ export default function ReportPage() {
       <Header />
       <main className="relative overflow-hidden pb-20 pt-[122px] max-md:pt-[104px]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_6%,rgba(34,211,238,.12),transparent_28%),radial-gradient(circle_at_82%_16%,rgba(248,113,113,.1),transparent_24%),linear-gradient(180deg,#05090c_0%,#071116_48%,#03080b_100%)]" aria-hidden="true" />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(33,216,238,.05)_1px,transparent_1px),linear-gradient(90deg,rgba(33,216,238,.05)_1px,transparent_1px)] bg-[size:62px_62px] opacity-25 [mask-image:linear-gradient(180deg,#000,transparent_82%)]" aria-hidden="true" />
 
         <section className="relative mx-auto w-[min(1240px,calc(100%-48px))] max-md:w-[min(680px,calc(100%-30px))]" aria-labelledby="report-title">
           <div className="flex flex-wrap items-end justify-between gap-5">
@@ -133,7 +152,7 @@ export default function ReportPage() {
                   <div>
                     <div className="inline-flex items-center gap-2 rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black uppercase tracking-[.16em] text-cyan-800">
                       <span className="size-1.5 rounded-full bg-cyan-500" />
-                      VerifAI forensic report
+                      Deep Fake Detector report
                     </div>
                     <h2 className="mt-4 text-3xl font-black tracking-[-.045em] text-slate-950">Deepfake Detection Summary</h2>
                     <p className="mt-2 max-w-[620px] text-sm leading-6 text-slate-600">{result.videoName} | generated for reviewer handoff</p>

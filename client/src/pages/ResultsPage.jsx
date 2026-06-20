@@ -7,7 +7,6 @@ import ResultInterpretation from '../components/results/ResultInterpretation'
 import ResultSummaryBanner from '../components/results/ResultSummaryBanner'
 import ScoreCard from '../components/results/ScoreCard'
 import SuspiciousFrameCard from '../components/results/SuspiciousFrameCard'
-import { analysisResult as fallbackResult } from '../data/resultData'
 import apiService from '../services/apiService'
 import { downloadPdfReport } from '../utils/reportDownload'
 import { getFriendlyError } from '../utils/errors'
@@ -22,57 +21,45 @@ function readStoredResult() {
 
 function buildResult() {
   const stored = readStoredResult()
-  if (!stored) return fallbackResult
-
-  return {
-    ...fallbackResult,
-    videoName: stored.videoName || fallbackResult.videoName,
-    fakeProbability: stored.confidence || fallbackResult.fakeProbability,
-    authenticityScore: Math.max(0, 100 - (stored.confidence || fallbackResult.fakeProbability)),
-  }
+  return stored || null
 }
 
 function normalizeResult(payload) {
   const data = payload?.data || payload?.result || payload
   if (!data || !data.videoId) return null
 
-  // Process backend data into frontend expected format
-  const confidencePercent = data.confidence !== undefined ? Math.round(data.confidence * 100) : fallbackResult.fakeProbability;
-  
-  // Map frames
-  let suspiciousFrames = fallbackResult.suspiciousFrames;
-  if (Array.isArray(data.frameEvidence) && data.frameEvidence.length > 0) {
-    suspiciousFrames = data.frameEvidence.map((evidence, idx) => ({
-      frameNumber: `Frame ${evidence.timestamp || idx + 1}`,
-      fakeProbability: Math.round(evidence.score || 0),
-      status: evidence.score > 50 ? 'Fake' : 'Real',
-      affectedRegions: evidence.activationRegion ? [evidence.activationRegion] : [],
-      originalImage: evidence.originalBase64?.startsWith('data:') ? evidence.originalBase64 : (evidence.originalBase64 ? `data:image/jpeg;base64,${evidence.originalBase64}` : fallbackResult.suspiciousFrames[0].originalImage),
-      heatmapImage: evidence.heatmapBase64?.startsWith('data:') ? evidence.heatmapBase64 : (evidence.heatmapBase64 ? `data:image/jpeg;base64,${evidence.heatmapBase64}` : fallbackResult.suspiciousFrames[0].heatmapImage),
-    }));
-  }
+  const rawConfidence = data.confidence ?? data.fakeProbability ?? 0
+  const confidencePercent = rawConfidence <= 1 ? Math.round(rawConfidence * 100) : Math.round(rawConfidence)
+  const frameEvidence = Array.isArray(data.frameEvidence) ? data.frameEvidence : []
+  const suspiciousFrames = frameEvidence.map((evidence, idx) => ({
+    frameNumber: `Frame ${evidence.timestamp || idx + 1}`,
+    fakeProbability: Math.round(evidence.score || evidence.fakeProbability || 0),
+    status: (evidence.score || evidence.fakeProbability || 0) > 50 ? 'Fake' : 'Real',
+    affectedRegions: evidence.activationRegion ? [evidence.activationRegion] : [],
+    originalImage: evidence.originalBase64?.startsWith('data:') ? evidence.originalBase64 : (evidence.originalBase64 ? `data:image/jpeg;base64,${evidence.originalBase64}` : ''),
+    heatmapImage: evidence.heatmapBase64?.startsWith('data:') ? evidence.heatmapBase64 : (evidence.heatmapBase64 ? `data:image/jpeg;base64,${evidence.heatmapBase64}` : ''),
+  }))
 
-  // Extract all unique activation regions
-  let affectedRegions = fallbackResult.affectedRegions;
-  if (Array.isArray(data.frameEvidence) && data.frameEvidence.length > 0) {
-    const regions = data.frameEvidence.map(e => e.activationRegion).filter(Boolean);
-    affectedRegions = [...new Set(regions)];
-    if (affectedRegions.length === 0) affectedRegions = ['Face'];
-  }
+  const affectedRegions = [...new Set(frameEvidence.map(e => e.activationRegion).filter(Boolean))]
+  if (affectedRegions.length === 0 && suspiciousFrames.length > 0) affectedRegions.push('Face')
 
-  const finalPrediction = data.verdict ? (data.verdict.toLowerCase() === 'real' ? 'Real' : 'Fake') : fallbackResult.finalPrediction;
+  const finalPrediction = data.verdict ? (data.verdict.toLowerCase() === 'real' ? 'Real' : 'Fake') : 'Pending'
 
   return {
-    ...fallbackResult,
     ...data,
-    videoName: data.videoName || data.video?.filename || fallbackResult.videoName,
+    videoName: data.videoName || data.video?.filename || 'Analyzed video',
+    analysisDate: data.analysisDate || data.createdAt || new Date().toLocaleDateString(),
     finalPrediction,
     fakeProbability: confidencePercent,
     authenticityScore: Math.max(0, 100 - confidencePercent),
+    framesAnalyzed: data.framesAnalyzed || frameEvidence.length || 0,
+    facesDetected: data.facesDetected || data.qualitySummary?.validFaceFrames || 0,
+    confidenceLevel: data.confidenceLevel || (confidencePercent >= 80 ? 'High' : confidencePercent >= 50 ? 'Medium' : 'Low'),
+    reportStatus: data.reportStatus || 'Ready',
     suspiciousFrames,
     affectedRegions,
     interpretation: `The uploaded video is classified as ${finalPrediction} with a confidence level of ${confidencePercent}%.`,
-    conclusion: data.qualitySummary ? `Video analyzed with ${data.qualitySummary.validFaceFrames || 0} valid face frames.` : fallbackResult.conclusion,
+    conclusion: data.qualitySummary ? `Video analyzed with ${data.qualitySummary.validFaceFrames || 0} valid face frames.` : 'Analysis completed successfully.',
   }
 }
 
@@ -120,24 +107,27 @@ export default function ResultsPage() {
   }, [])
 
   const scoreCards = [
-    { label: 'Fake Probability', value: result.fakeProbability, suffix: '%', tone: 'red' },
-    { label: 'Authenticity Score', value: result.authenticityScore, suffix: '%', tone: 'emerald' },
-    { label: 'Frames Analyzed', value: result.framesAnalyzed, tone: 'cyan' },
-    { label: 'Faces Detected', value: result.facesDetected, tone: 'cyan' },
-    { label: 'Confidence Level', value: result.confidenceLevel, tone: 'amber' },
-    { label: 'PDF Report', value: result.reportStatus, tone: 'slate' },
+    { label: 'Fake Probability', value: result?.fakeProbability || 0, suffix: '%', tone: 'red' },
+    { label: 'Authenticity Score', value: result?.authenticityScore || 0, suffix: '%', tone: 'emerald' },
+    { label: 'Frames Analyzed', value: result?.framesAnalyzed || 0, tone: 'cyan' },
+    { label: 'Faces Detected', value: result?.facesDetected || 0, tone: 'cyan' },
+    { label: 'Confidence Level', value: result?.confidenceLevel || '-', tone: 'amber' },
+    { label: 'PDF Report', value: result?.reportStatus || '-', tone: 'slate' },
   ]
 
-  if (notFound) {
+  if (notFound || !result) {
     return (
       <div className="min-h-screen bg-[#05090c] font-['Manrope'] text-[#f4fbff] antialiased">
         <Header />
         <main className="relative grid min-h-screen place-items-center overflow-hidden px-6 pt-28">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(248,113,113,.12),transparent_30%),linear-gradient(180deg,#05090c,#071116_52%,#03080b)]" aria-hidden="true" />
-          <section className="relative w-[min(680px,100%)] rounded-[30px] border border-red-300/20 bg-red-400/[.07] p-7 text-center shadow-[0_32px_90px_rgba(0,0,0,.42)]">
-            <h1 className="text-[clamp(32px,5vw,52px)] font-semibold tracking-[-.045em]">Result Not Found</h1>
-            <p className="mx-auto mt-4 max-w-[520px] text-base leading-7 text-[#a9bac1]">No analysis result was found for this video. It may have been deleted or the analysis has not completed yet.</p>
-            <a className="mt-7 inline-flex min-h-12 items-center justify-center rounded-full bg-cyan-300 px-6 text-sm font-extrabold text-[#021014]" href="/history">Back to History</a>
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(34,211,238,.12),transparent_30%),linear-gradient(180deg,#05090c,#071116_52%,#03080b)]" aria-hidden="true" />
+          <section className="relative w-[min(680px,100%)] rounded-[30px] border border-cyan-300/20 bg-cyan-300/[.07] p-7 text-center shadow-[0_32px_90px_rgba(0,0,0,.42)]">
+            <h1 className="text-[clamp(32px,5vw,52px)] font-semibold tracking-[-.045em]">{notFound ? 'Result Not Found' : 'No Result Selected'}</h1>
+            <p className="mx-auto mt-4 max-w-[520px] text-base leading-7 text-[#a9bac1]">No real analysis result is available for this page. Upload a video or open a saved analysis from history.</p>
+            <div className="mt-7 flex flex-wrap justify-center gap-3">
+              <a className="inline-flex min-h-12 items-center justify-center rounded-full bg-cyan-300 px-6 text-sm font-extrabold text-[#021014]" href="/upload">Analyze Video</a>
+              <a className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/12 bg-white/[.045] px-6 text-sm font-bold text-slate-100" href="/history">Back to History</a>
+            </div>
           </section>
         </main>
       </div>
@@ -199,6 +189,12 @@ export default function ResultsPage() {
               </a>
             </div>
             <div className="mt-6 grid grid-cols-4 gap-4 max-xl:grid-cols-2 max-md:grid-cols-1">
+              {result.suspiciousFrames.length === 0 && (
+                <div className="col-span-full rounded-2xl border border-white/[.08] bg-[#071116]/72 px-5 py-10 text-center">
+                  <p className="text-base font-bold text-white">No frame evidence returned</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">The backend did not provide frame images for this analysis.</p>
+                </div>
+              )}
               {result.suspiciousFrames.slice(0, 4).map((frame) => (
                 <SuspiciousFrameCard frame={frame} key={frame.frameNumber} />
               ))}

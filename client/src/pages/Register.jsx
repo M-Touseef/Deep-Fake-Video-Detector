@@ -74,8 +74,8 @@ export default function Register() {
         <form className={`grid gap-5 ${isLoading ? 'opacity-80' : ''}`} noValidate onSubmit={handleSubmit}>
           <AuthErrorAlert message={alert} />
           <AuthErrorAlert message={success} tone="success" />
-          <AuthInput autoComplete="name" error={errors.name} id="register-name" label="Full Name" name="name" placeholder="Demo User" type="text" value={values.name} onChange={updateValue} />
-          <AuthInput autoComplete="email" error={errors.email} id="register-email" label="Email Address" name="email" placeholder="demo@example.com" type="email" value={values.email} onChange={updateValue} />
+          <AuthInput autoComplete="name" error={errors.name} id="register-name" label="Full Name" name="name" placeholder="Full name" type="text" value={values.name} onChange={updateValue} />
+          <AuthInput autoComplete="email" error={errors.email} id="register-email" label="Email Address" name="email" placeholder="name@example.com" type="email" value={values.email} onChange={updateValue} />
           <PasswordInput autoComplete="new-password" error={errors.password} id="register-password" label="Password" name="password" placeholder="At least 8 characters" value={values.password} onChange={updateValue} />
           <PasswordInput autoComplete="new-password" error={errors.confirmPassword} id="register-confirm-password" label="Confirm Password" name="confirmPassword" placeholder="Repeat your password" value={values.confirmPassword} onChange={updateValue} />
 
