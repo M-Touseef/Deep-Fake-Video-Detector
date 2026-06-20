@@ -105,9 +105,7 @@ export default function TechnologyShowcase() {
           </motion.div>
           <motion.h2 id="technology-title" className="mb-4 text-4xl font-bold leading-tight sm:text-5xl" variants={itemVariants}>
             <span className="text-white">Technical </span>
-            <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">
-              Expertise
-            </span>
+            <span className="text-cyan-300">Expertise</span>
           </motion.h2>
         </motion.div>
 

@@ -62,10 +62,6 @@ export default function Header() {
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
-          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/15 bg-emerald-300/10 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[.1em] text-emerald-200">
-            <span className="size-1.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,.85)]" />
-            Engine Online
-          </span>
           {user ? (
             <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-cyan-300 px-5 text-sm font-extrabold text-[#021014] shadow-[0_14px_34px_rgba(34,211,238,.18)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-cyan-200 hover:shadow-[0_18px_42px_rgba(34,211,238,.28)]" type="button" onClick={logout}>
               Logout
