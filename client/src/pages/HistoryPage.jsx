@@ -18,7 +18,7 @@ export default function HistoryPage() {
         if (!isActive) return
         const videos = Array.isArray(payload) ? payload : payload?.videos || payload?.data || []
         setItems(videos.length ? videos.map((video) => ({
-          id: video.id || video.videoId || video.filename,
+          id: video._id || video.id || video.videoId || video.filename,
           video: video.filename || video.videoName || 'Untitled video',
           date: video.createdAt || video.uploadedAt || 'Not reported',
           result: video.verdict || video.finalPrediction || video.status || 'Pending',

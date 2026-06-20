@@ -2,6 +2,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const jobService = require('../services/jobService');
 const videoService = require('../services/videoService');
 const mlService = require('../services/mlService');
+const fs = require('fs');
 
 /**
  * Start analysis for a video
@@ -72,6 +73,15 @@ const startAnalysis = asyncHandler(async (req, res) => {
         await mlService.saveResult(videoId, mlResult);
         await jobService.updateJobProgress(videoId, 95);
         await jobService.completeJob(videoId);
+
+        // Remove video from storage after analysis is complete
+        if (video.filePath && fs.existsSync(video.filePath)) {
+            try {
+                fs.unlinkSync(video.filePath);
+            } catch (unlinkErr) {
+                console.warn(`[WARN] Failed to delete video file for ${videoId}:`, unlinkErr.message);
+            }
+        }
     } catch (error) {
         if (progressTimer) {
             clearInterval(progressTimer);
