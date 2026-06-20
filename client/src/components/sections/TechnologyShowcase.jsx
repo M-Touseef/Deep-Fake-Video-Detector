@@ -27,7 +27,13 @@ function TechnologyIcon({ type, color }) {
 
 function getVisibleIndexes(activeIndex) {
   const length = technologies.length
-  return [(activeIndex - 1 + length) % length, activeIndex, (activeIndex + 1) % length]
+  return [
+    (activeIndex - 2 + length) % length,
+    (activeIndex - 1 + length) % length,
+    activeIndex,
+    (activeIndex + 1) % length,
+    (activeIndex + 2) % length,
+  ]
 }
 
 export default function TechnologyShowcase() {
@@ -38,7 +44,7 @@ export default function TechnologyShowcase() {
 
   useEffect(() => {
     if (!isVisible || isPaused) return undefined
-    const interval = window.setInterval(() => setActiveIndex((current) => (current + 1) % technologies.length), 3200)
+    const interval = window.setInterval(() => setActiveIndex((current) => (current + 1) % technologies.length), 2500)
     return () => window.clearInterval(interval)
   }, [isPaused, isVisible])
 
@@ -46,33 +52,74 @@ export default function TechnologyShowcase() {
   const next = () => setActiveIndex((current) => (current + 1) % technologies.length)
 
   return (
-    <section id="technology" ref={sectionRef} className="relative overflow-hidden border-t border-white/[.055] bg-[#050b0f] py-28 max-md:py-20" aria-labelledby="technology-title">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_55%,rgba(33,216,238,.09),transparent_35%)]" />
+    <section id="technology" ref={sectionRef} className="relative overflow-hidden border-t border-white/[.055] bg-gradient-to-b from-[#050b0f] via-[#071218] to-[#05090c] py-28 max-md:py-20" aria-labelledby="technology-title">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_48%,rgba(33,216,238,.11),transparent_38%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(33,216,238,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(33,216,238,.025)_1px,transparent_1px)] bg-[size:72px_72px] [mask-image:linear-gradient(180deg,transparent,#000_20%,#000_80%,transparent)]" />
 
       <div className="relative mx-auto w-[min(1240px,calc(100%-48px))] max-md:w-[min(680px,calc(100%-30px))]">
         <header className="mx-auto mb-14 max-w-[720px] text-center">
           <div className={`mb-5 flex items-center justify-center gap-2.5 text-[11px] font-semibold uppercase tracking-[.22em] text-cyan-200/80 transition-all duration-700 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'}`}><span className="size-1.5 rounded-full bg-cyan-300 shadow-[0_0_10px_#21d8ee]" />Technology stack</div>
-          <h2 id="technology-title" className={`text-[clamp(34px,4vw,52px)] font-semibold leading-[1.12] tracking-[-.045em] transition-all delay-100 duration-700 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>Built With a Modern AI Technology Stack</h2>
-          <p className={`mx-auto mt-5 max-w-[650px] text-[15px] leading-7 text-[#91a5ad] transition-all delay-200 duration-700 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>Purpose-built tools for video processing, facial analysis, deep learning classification, and explainable AI.</p>
+          <h2 id="technology-title" className={`text-[clamp(34px,4vw,52px)] font-semibold leading-[1.12] transition-all delay-100 duration-700 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
+            Technical <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">Expertise</span>
+          </h2>
+          <p className={`mx-auto mt-5 max-w-[650px] text-[15px] leading-7 text-[#91a5ad] transition-all delay-200 duration-700 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>Tools and AI technologies used to build video processing, facial analysis, deep learning classification, and explainable reports.</p>
         </header>
 
         <div className={`transition-all delay-300 duration-700 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'}`} onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)}>
-          <div className="grid grid-cols-[.8fr_1.2fr_.8fr] items-center gap-5 max-md:block">
+          <div className="hidden min-h-[250px] items-center justify-center gap-5 md:flex">
             {visibleIndexes.map((technologyIndex, slot) => {
               const technology = technologies[technologyIndex]
-              const active = slot === 1
+              const active = slot === 2
+              const near = slot === 1 || slot === 3
               return (
-                <button type="button" onClick={() => setActiveIndex(technologyIndex)} className={`group relative min-h-[310px] overflow-hidden rounded-[28px] border text-left transition-all duration-500 ${active ? 'z-10 block scale-100 border-cyan-300/25 bg-[#0a171d] p-8 shadow-[0_30px_80px_rgba(0,0,0,.38),0_0_45px_rgba(33,216,238,.07)] max-md:block' : 'scale-[.92] border-white/[.065] bg-white/[.025] p-7 opacity-50 hover:scale-[.95] hover:opacity-80 max-md:hidden'}`} key={`${slot}-${technology.name}`}>
-                  <span className="absolute right-6 top-6 text-[10px] font-bold tracking-[.16em] text-white/15">{String(technologyIndex + 1).padStart(2, '0')}</span>
-                  <div className={`${active ? 'size-20' : 'size-16'} grid place-items-center rounded-3xl border border-white/10 bg-white/[.035] p-4 transition-transform duration-500 group-hover:scale-105`}><TechnologyIcon type={technology.icon} color={technology.color} /></div>
-                  <span className="mt-8 block text-[10px] font-semibold uppercase tracking-[.17em] text-cyan-200/50">{technology.category}</span>
-                  <h3 className={`${active ? 'text-3xl' : 'text-xl'} mt-2 font-semibold tracking-[-.035em] text-white`}>{technology.name}</h3>
-                  <p className={`${active ? 'max-w-[390px] text-[13px]' : 'text-xs'} mt-4 leading-6 text-[#879aa2]`}>{technology.description}</p>
-                  {active && <span className="absolute inset-x-8 bottom-7 h-px bg-gradient-to-r from-cyan-300/50 via-cyan-300/10 to-transparent" />}
+                <button
+                  type="button"
+                  onClick={() => setActiveIndex(technologyIndex)}
+                  className={`group relative grid h-[210px] w-[210px] shrink-0 place-items-center overflow-hidden rounded-lg border p-6 text-center transition-all duration-500 ${
+                    active
+                      ? 'z-20 scale-110 border-cyan-300/35 bg-[#0b1a21] shadow-[0_28px_70px_rgba(0,0,0,.42),0_0_42px_rgba(33,216,238,.13)]'
+                      : near
+                        ? 'z-10 scale-95 border-white/[.08] bg-white/[.035] opacity-75 hover:-translate-y-2 hover:border-cyan-300/25 hover:opacity-100'
+                        : 'scale-[.85] border-white/[.055] bg-white/[.025] opacity-35'
+                  }`}
+                  key={`${slot}-${technology.name}`}
+                >
+                  <span className="absolute inset-x-5 top-4 h-px bg-gradient-to-r from-transparent via-cyan-200/25 to-transparent" />
+                  <span className="absolute right-4 top-4 text-[10px] font-bold tracking-[.16em] text-white/15">{String(technologyIndex + 1).padStart(2, '0')}</span>
+                  <div className={`${active ? 'size-[72px]' : 'size-16'} grid place-items-center rounded-lg border border-cyan-200/10 bg-white/[.035] p-4 transition-transform duration-500 group-hover:scale-105`}>
+                    <TechnologyIcon type={technology.icon} color={technology.color} />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-cyan-200/55">{technology.category}</p>
+                    <h3 className="mt-2 text-[20px] font-semibold text-white">{technology.name}</h3>
+                  </div>
                 </button>
               )
             })}
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 md:hidden">
+            {technologies.map((technology, index) => (
+              <button
+                type="button"
+                onClick={() => setActiveIndex(index)}
+                className={`grid h-[126px] place-items-center rounded-lg border p-3 text-center transition-all duration-300 ${
+                  index === activeIndex ? 'border-cyan-300/35 bg-[#0b1a21]' : 'border-white/[.07] bg-white/[.03]'
+                }`}
+                key={technology.name}
+              >
+                <div className="grid size-10 place-items-center rounded-lg border border-cyan-200/10 bg-white/[.035] p-2">
+                  <TechnologyIcon type={technology.icon} color={technology.color} />
+                </div>
+                <p className="text-[12px] font-semibold text-white">{technology.name}</p>
+              </button>
+            ))}
+          </div>
+
+          <div className="mx-auto mt-9 max-w-[760px] rounded-lg border border-white/[.07] bg-white/[.025] p-5 text-center shadow-[0_20px_60px_rgba(0,0,0,.22)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[.17em] text-cyan-200/55">{technologies[activeIndex].category}</p>
+            <h3 className="mt-2 text-2xl font-semibold text-white">{technologies[activeIndex].name}</h3>
+            <p className="mx-auto mt-3 max-w-[560px] text-[13px] leading-6 text-[#91a5ad]">{technologies[activeIndex].description}</p>
           </div>
 
           <div className="mt-9 flex items-center justify-between gap-6">
