@@ -1,6 +1,14 @@
 export default function ResultSummaryBanner({ result }) {
   const isFake = result.finalPrediction === 'Fake'
 
+  // Show the score that matters for the verdict
+  const primaryLabel = isFake ? 'Fake Probability' : 'Authenticity Score'
+  const primaryValue = isFake ? result.fakeProbability : result.authenticityScore
+  const primaryColor = isFake ? 'text-red-100' : 'text-emerald-100'
+  const confidenceLabel = isFake
+    ? `Confidence: ${result.confidenceLevel}`
+    : `Authentic with ${result.confidenceLevel} confidence`
+
   return (
     <section className={`relative overflow-hidden rounded-[30px] border p-7 shadow-[0_28px_80px_rgba(0,0,0,.38),inset_0_1px_0_rgba(255,255,255,.06)] ${isFake ? 'border-red-300/20 bg-red-400/[.075]' : 'border-emerald-300/20 bg-emerald-300/[.065]'}`} aria-label="Final prediction summary">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_8%,rgba(34,211,238,.14),transparent_30%),linear-gradient(120deg,rgba(255,255,255,.05),transparent_45%)]" aria-hidden="true" />
@@ -16,11 +24,11 @@ export default function ResultSummaryBanner({ result }) {
         </div>
 
         <div className="grid rounded-[26px] border border-white/10 bg-[#071116]/72 p-5 text-center">
-          <span className="text-[11px] font-bold uppercase tracking-[.16em] text-slate-400">Fake Probability</span>
-          <strong className={`mt-4 text-[clamp(54px,8vw,82px)] font-semibold leading-none tracking-[-.07em] ${isFake ? 'text-red-100' : 'text-emerald-100'}`}>
-            {result.fakeProbability}%
+          <span className="text-[11px] font-bold uppercase tracking-[.16em] text-slate-400">{primaryLabel}</span>
+          <strong className={`mt-4 text-[clamp(54px,8vw,82px)] font-semibold leading-none tracking-[-.07em] ${primaryColor}`}>
+            {primaryValue}%
           </strong>
-          <span className="mt-4 rounded-full border border-white/10 bg-white/[.04] px-3 py-2 text-xs font-bold text-slate-200">Confidence: {result.confidenceLevel}</span>
+          <span className="mt-4 rounded-full border border-white/10 bg-white/[.04] px-3 py-2 text-xs font-bold text-slate-200">{confidenceLabel}</span>
         </div>
       </div>
     </section>

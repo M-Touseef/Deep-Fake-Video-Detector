@@ -109,13 +109,18 @@ export default function ResultsPage() {
     }
   }, [])
 
+  const isFakeResult = result?.finalPrediction === 'Fake'
   const scoreCards = [
-    { label: 'Fake Probability', value: result?.fakeProbability || 0, suffix: '%', tone: 'red' },
-    { label: 'Authenticity Score', value: result?.authenticityScore || 0, suffix: '%', tone: 'emerald' },
+    isFakeResult
+      ? { label: 'Fake Probability',  value: result?.fakeProbability   || 0, suffix: '%', tone: 'red' }
+      : { label: 'Authenticity Score', value: result?.authenticityScore || 0, suffix: '%', tone: 'emerald' },
+    isFakeResult
+      ? { label: 'Authenticity Score', value: result?.authenticityScore || 0, suffix: '%', tone: 'emerald' }
+      : { label: 'Fake Probability',   value: result?.fakeProbability   || 0, suffix: '%', tone: 'slate' },
     { label: 'Frames Analyzed', value: result?.framesAnalyzed || 0, tone: 'cyan' },
-    { label: 'Faces Detected', value: result?.facesDetected || 0, tone: 'cyan' },
+    { label: 'Faces Detected',  value: result?.facesDetected  || 0, tone: 'cyan' },
     { label: 'Confidence Level', value: result?.confidenceLevel || '-', tone: 'amber' },
-    { label: 'PDF Report', value: result?.reportStatus || '-', tone: 'slate' },
+    { label: 'PDF Report',       value: result?.reportStatus   || '-', tone: 'slate' },
   ]
 
   if (notFound || !result) {
