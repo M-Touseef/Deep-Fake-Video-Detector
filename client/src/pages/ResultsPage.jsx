@@ -28,6 +28,9 @@ function normalizeResult(payload) {
   const data = payload?.data || payload?.result || payload
   if (!data || !data.videoId) return null
 
+  // Already normalized (e.g. restored from sessionStorage after normalizeResult ran)
+  if (Array.isArray(data.suspiciousFrames) && Array.isArray(data.affectedRegions)) return data
+
   const rawConfidence = data.confidence ?? data.fakeProbability ?? 0
   const confidencePercent = rawConfidence <= 1 ? Math.round(rawConfidence * 100) : Math.round(rawConfidence)
   const frameEvidence = Array.isArray(data.frameEvidence) ? data.frameEvidence : []
@@ -189,20 +192,20 @@ export default function ResultsPage() {
               </a>
             </div>
             <div className="mt-6 grid grid-cols-4 gap-4 max-xl:grid-cols-2 max-md:grid-cols-1">
-              {result.suspiciousFrames.length === 0 && (
+              {(result.suspiciousFrames?.length ?? 0) === 0 && (
                 <div className="col-span-full rounded-2xl border border-white/[.08] bg-[#071116]/72 px-5 py-10 text-center">
                   <p className="text-base font-bold text-white">No frame evidence returned</p>
                   <p className="mt-2 text-sm leading-6 text-slate-500">The backend did not provide frame images for this analysis.</p>
                 </div>
               )}
-              {result.suspiciousFrames.slice(0, 4).map((frame) => (
+              {(result.suspiciousFrames ?? []).slice(0, 4).map((frame) => (
                 <SuspiciousFrameCard frame={frame} key={frame.frameNumber} />
               ))}
             </div>
           </section>
 
           <div className="mt-6 grid grid-cols-[minmax(0,.92fr)_minmax(0,1.08fr)] gap-6 max-lg:grid-cols-1">
-            <HeatmapRegionChips regions={result.affectedRegions} />
+            <HeatmapRegionChips regions={result.affectedRegions ?? []} />
             <PDFReportCard onDownload={() => downloadPdfReport(result)} />
           </div>
 
