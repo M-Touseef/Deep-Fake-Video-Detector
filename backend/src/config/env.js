@@ -19,9 +19,14 @@ const env = {
     MONGODB_URI: process.env.MONGODB_URI || 'mongodb://localhost:27017/proof-of-reality',
 
     // ML Service — Flask deepfake detector
-    // In production set ML_SERVICE_URL to the Azure Container App URL:
-    //   https://<app-name>.<region>.azurecontainerapps.io/predict
-    ML_SERVICE_URL: process.env.ML_SERVICE_URL || 'http://localhost:5000/predict',
+    // Option A (preferred on Render): set ML_SERVICE_URL directly, e.g.:
+    //   ML_SERVICE_URL=https://deepfake-ml-service.onrender.com/predict
+    // Option B: set ML_SERVICE_HOST (injected by Render fromService) and
+    //   the code will auto-build the full URL as https://<host>/predict
+    ML_SERVICE_URL: process.env.ML_SERVICE_URL ||
+        (process.env.ML_SERVICE_HOST
+            ? `https://${process.env.ML_SERVICE_HOST}/predict`
+            : 'http://localhost:5000/predict'),
     ML_SERVICE_TIMEOUT: parseInt(process.env.ML_SERVICE_TIMEOUT) || 300000, // 5 minutes
 
     // File Upload
