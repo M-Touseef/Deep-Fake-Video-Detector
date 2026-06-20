@@ -102,6 +102,87 @@ function HeatmapSlab({ active }) {
   )
 }
 
+function CodeStreamLayer() {
+  const streams = [
+    ['ingest.video()', 'ffmpeg.decode()', 'frames[184]', 'queue.running'],
+    ['detect_faces()', 'crop.region()', 'landmarks.map()', 'valid.face=true'],
+    ['model.forward()', 'efficientnet.b0', 'transformer.seq', 'logits.update'],
+    ['grad_cam()', 'heatmap.write()', 'pdf.render()', 'result.persist'],
+  ]
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(34,211,238,.18),transparent_34%),radial-gradient(circle_at_78%_20%,rgba(16,185,129,.1),transparent_28%)]" />
+      {streams.map((items, streamIndex) => (
+        <div
+          className="absolute flex min-w-max gap-4 text-[10px] font-black uppercase tracking-[.16em] text-cyan-100/30"
+          key={items.join('-')}
+          style={{
+            top: `${14 + streamIndex * 20}%`,
+            animation: `processing-stream ${streamIndex % 2 ? 18 : 22}s linear infinite`,
+            animationDelay: `${streamIndex * -3}s`,
+          }}
+        >
+          {[...items, ...items, ...items].map((item, index) => (
+            <span className="rounded-full border border-cyan-200/10 bg-cyan-300/[.045] px-3 py-1.5 shadow-[0_0_18px_rgba(34,211,238,.08)]" key={`${item}-${index}`}>
+              {item}
+            </span>
+          ))}
+        </div>
+      ))}
+      {[0, 1, 2, 3, 4, 5].map((item) => (
+        <span
+          className="absolute size-1.5 rounded-full bg-cyan-200 shadow-[0_0_18px_rgba(103,232,249,.9)]"
+          key={item}
+          style={{
+            left: `${16 + item * 13}%`,
+            top: `${24 + (item % 3) * 19}%`,
+            animation: `packet-float ${3.8 + item * 0.35}s ease-in-out infinite`,
+            animationDelay: `${item * -0.55}s`,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+function AnalysisOrbit({ safeProgress, activeStep }) {
+  return (
+    <div className="relative mx-auto grid min-h-[340px] max-w-[620px] place-items-center [perspective:1200px] max-sm:min-h-[300px]">
+      <div className="absolute h-[300px] w-[300px] rounded-full border border-cyan-200/10 max-sm:h-[240px] max-sm:w-[240px]" style={{ transform: 'rotateX(68deg)', animation: 'orbit-spin 9s linear infinite' }} />
+      <div className="absolute h-[230px] w-[230px] rounded-full border border-emerald-200/10 max-sm:h-[190px] max-sm:w-[190px]" style={{ transform: 'rotateX(68deg) rotateZ(45deg)', animation: 'orbit-spin 7s linear infinite reverse' }} />
+      {[0, 1, 2, 3].map((item) => (
+        <div
+          className="absolute h-16 w-24 overflow-hidden rounded-xl border border-cyan-200/20 bg-[#071116]/80 shadow-[0_18px_42px_rgba(0,0,0,.28)] backdrop-blur-sm"
+          key={item}
+          style={{
+            transform: `rotate(${item * 90}deg) translateX(150px) rotate(${-item * 90}deg) rotateY(-18deg)`,
+            animation: `frame-orbit ${8 + item}s linear infinite`,
+            animationDelay: `${item * -1.2}s`,
+          }}
+        >
+          <div className="h-10 bg-[linear-gradient(135deg,rgba(34,211,238,.22),rgba(2,7,10,.9))]">
+            <span className="ml-7 mt-2 inline-block h-5 w-7 rounded-full border border-cyan-100/45" />
+          </div>
+          <div className="flex items-center gap-1.5 border-t border-white/10 px-2 py-1">
+            <span className="size-1 rounded-full bg-cyan-200" />
+            <span className="h-1 flex-1 rounded-full bg-white/15" />
+          </div>
+        </div>
+      ))}
+      <div className="relative grid size-[210px] place-items-center rounded-[42px] border border-cyan-200/25 bg-[#061017]/90 shadow-[0_35px_90px_rgba(0,0,0,.45),0_0_60px_rgba(34,211,238,.14)] [transform-style:preserve-3d] max-sm:size-[180px]" style={{ transform: 'rotateX(12deg) rotateY(-18deg)' }}>
+        <div className="absolute inset-5 rounded-[32px] border border-cyan-200/10" />
+        <div className="absolute inset-9 rounded-full border border-cyan-200/20" style={{ animation: 'orbit-spin 5s linear infinite' }} />
+        <div className="grid text-center">
+          <span className="text-[11px] font-black uppercase tracking-[.18em] text-cyan-200/70">Analyzing</span>
+          <strong className="mt-2 text-5xl font-black tracking-[-.07em] text-white max-sm:text-4xl">{safeProgress}%</strong>
+          <span className="mt-2 max-w-[150px] text-xs font-semibold leading-5 text-slate-400">{activeStep?.title}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function VerdictCore({ active, progress }) {
   return (
     <div className="relative grid size-24 place-items-center [transform-style:preserve-3d]" style={{ transform: 'rotateX(-12deg) rotateY(26deg)' }}>
@@ -116,11 +197,13 @@ function Forensic3DPipeline({ currentStep, safeProgress, activeStep }) {
   const stageNames = ['Frames', 'Face scan', 'Heatmap', 'Verdict']
 
   return (
-    <div className="relative min-h-[390px] overflow-hidden rounded-[28px] border border-cyan-300/15 bg-[#02070a] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,.05)] max-sm:min-h-[620px]">
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(34,211,238,.08)_1px,transparent_1px),linear-gradient(rgba(34,211,238,.06)_1px,transparent_1px)] bg-[size:44px_44px] opacity-45" aria-hidden="true" />
-      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-cyan-300/[.08] to-transparent" aria-hidden="true" />
+    <div className="relative min-h-[520px] overflow-hidden rounded-[28px] border border-cyan-300/15 bg-[#02070a] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,.05)] max-sm:min-h-[760px]">
+      <CodeStreamLayer />
+      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-cyan-300/[.08] to-transparent" aria-hidden="true" />
       <div className="absolute left-1/2 top-[54%] h-1 w-[72%] -translate-x-1/2 rounded-full bg-cyan-200/20 shadow-[0_0_26px_rgba(34,211,238,.18)] max-sm:hidden" aria-hidden="true" />
       <div className="absolute left-[14%] top-[54%] h-1 w-24 animate-[pulse_1.2s_ease-in-out_infinite] rounded-full bg-cyan-100/80 shadow-[0_0_22px_rgba(103,232,249,.8)] max-sm:hidden" aria-hidden="true" />
+
+      <AnalysisOrbit safeProgress={safeProgress} activeStep={activeStep} />
 
       <div className="relative grid min-h-[300px] grid-cols-4 items-center gap-4 [perspective:1100px] max-lg:grid-cols-2 max-sm:grid-cols-1">
         <StageNode label="Frames" detail="Decode stream" active={currentStep >= 0} index={0}>
@@ -153,6 +236,24 @@ function Forensic3DPipeline({ currentStep, safeProgress, activeStep }) {
           })}
         </div>
       </div>
+      <style>{`
+        @keyframes processing-stream {
+          from { transform: translateX(-35%); }
+          to { transform: translateX(8%); }
+        }
+        @keyframes packet-float {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(.8); opacity: .35; }
+          50% { transform: translate3d(18px, -22px, 0) scale(1.2); opacity: .95; }
+        }
+        @keyframes orbit-spin {
+          from { rotate: 0deg; }
+          to { rotate: 360deg; }
+        }
+        @keyframes frame-orbit {
+          from { rotate: 0deg; }
+          to { rotate: 360deg; }
+        }
+      `}</style>
     </div>
   )
 }

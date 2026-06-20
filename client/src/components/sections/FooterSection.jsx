@@ -26,17 +26,16 @@ export default function FooterSection() {
   return (
     <footer className="relative overflow-hidden border-t border-white/[.07] bg-[#03080b] text-slate-300">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(33,216,238,.075),transparent_32%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(33,216,238,.02)_1px,transparent_1px),linear-gradient(90deg,rgba(33,216,238,.02)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:linear-gradient(180deg,#000,transparent_70%)]" />
 
       <div className="relative mx-auto w-[min(1240px,calc(100%-48px))] pt-20 max-md:w-[min(680px,calc(100%-30px))] max-md:pt-16">
         <div className="grid grid-cols-[1.5fr_.75fr_1fr_1fr] gap-12 pb-16 max-lg:grid-cols-2 max-md:grid-cols-1 max-md:gap-10">
           <div className="max-w-[390px]">
-            <a className="inline-flex items-center gap-3" href="#top" aria-label="VerifAI video forensics home">
+            <a className="inline-flex items-center gap-3" href="#top" aria-label="Deep Fake Detector home">
               <span className="grid size-12 place-items-center rounded-2xl border border-cyan-300/30 bg-cyan-300/[.065] shadow-[inset_0_0_20px_rgba(33,216,238,.06)]">
                 <img className="size-9 object-contain drop-shadow-[0_0_14px_rgba(34,211,238,.3)]" src="/images/verifai-logo.svg" alt="" aria-hidden="true" />
               </span>
               <span>
-                <span className="block text-[17px] font-black uppercase tracking-[.14em] text-white">Verif<span className="text-cyan-300">AI</span></span>
+                <span className="block text-[17px] font-black uppercase tracking-[.08em] text-white">Deep Fake <span className="text-cyan-300">Detector</span></span>
                 <span className="mt-1 block text-[11px] font-semibold uppercase tracking-[.12em] text-slate-500">AI Video Forensics</span>
               </span>
             </a>
@@ -84,7 +83,7 @@ export default function FooterSection() {
         </div>
 
         <div className="flex items-center justify-between gap-6 py-7 max-md:flex-col max-md:items-start">
-          <p className="text-[10px] leading-5 text-[#60747c]">© 2026 Deepfake Detection System. Developed as a Final Year Project for academic and research purposes.</p>
+          <p className="text-[10px] leading-5 text-[#60747c]">© 2026 Deep Fake Detector. Developed as a Final Year Project for academic and research purposes.</p>
           <a className="inline-flex shrink-0 items-center gap-2 text-[10px] font-semibold uppercase tracking-[.14em] text-[#71858d] transition-colors hover:text-cyan-200" href="#top">
             Back to top
             <span aria-hidden="true">↑</span>
